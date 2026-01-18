@@ -1,32 +1,31 @@
 
 import React, { useState, useEffect } from 'react';
 import { getDailyAffirmation } from '../services/geminiService';
+import { trackAdminContact } from '../services/dbService';
 
 interface HomeProps {
   onStart: () => void;
 }
 
 const Home: React.FC<HomeProps> = ({ onStart }) => {
-  const [ventCount, setVentCount] = useState<number>(0);
   const [isBreathing, setIsBreathing] = useState(false);
   const [affirmation, setAffirmation] = useState<string>("");
   const [isLoadingAffirmation, setIsLoadingAffirmation] = useState(true);
 
   useEffect(() => {
-    try {
-      const existing = JSON.parse(localStorage.getItem('alxie_vents') || '[]');
-      setVentCount(existing.length);
-      
-      const loadAffirmation = async () => {
-        const text = await getDailyAffirmation();
-        setAffirmation(text);
-        setIsLoadingAffirmation(false);
-      };
-      loadAffirmation();
-    } catch (e) {
-      setVentCount(0);
-    }
+    const loadAffirmation = async () => {
+      const text = await getDailyAffirmation();
+      setAffirmation(text);
+      setIsLoadingAffirmation(false);
+    };
+    loadAffirmation();
   }, []);
+
+  const openWA = (admin: {name: string, num: string}) => {
+    trackAdminContact(admin.name);
+    const text = encodeURIComponent("Halo, saya ingin teman bicara langsung...");
+    window.open(`https://wa.me/${admin.num}?text=${text}`, '_blank');
+  };
 
   return (
     <div className="flex flex-col space-y-16 py-4 animate-in fade-in duration-1000">
@@ -64,6 +63,39 @@ const Home: React.FC<HomeProps> = ({ onStart }) => {
           <span className="text-lg">Mulai Bercerita</span>
           <svg className="w-6 h-6 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
         </button>
+      </section>
+
+      {/* Tim Admin Section */}
+      <section className="space-y-8">
+        <div className="text-center space-y-2">
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center justify-center gap-2 tracking-tight">
+            Teman Bicara <span className="text-blue-500 animate-pulse">●</span>
+          </h3>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">Pilih teman yang ingin kamu ajak ngobrol langsung di WhatsApp:</p>
+        </div>
+        
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto px-4">
+          {[
+            { name: "Admin ALXIE", num: "628194068927", sub: "???", icon: "🧿" },
+            { name: "Epy", num: "6281572926951", sub: "Penjaga", icon: "🛡️" },
+            { name: "Misteri", num: "6285133763226", sub: "Bayangan", icon: "🌑" },
+            { name: "ADMIN Axelia", num: "6283140008929", sub: "Misterius", icon: "✨" }
+          ].map(admin => (
+            <button 
+              key={admin.name}
+              onClick={() => openWA(admin)}
+              className={`flex flex-col items-center justify-center p-6 border rounded-2xl transition-all hover:-translate-y-1 shadow-sm group text-center ${['Misteri', 'ADMIN Axelia'].includes(admin.name) ? 'bg-black border-gray-800' : 'bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800'}`}
+            >
+              <div className="text-3xl mb-4 group-hover:scale-110 transition-transform">
+                {admin.icon}
+              </div>
+              <div>
+                <h4 className={`text-[11px] font-bold group-hover:text-blue-500 transition-colors uppercase tracking-widest ${['Misteri', 'ADMIN Axelia'].includes(admin.name) ? 'text-white' : 'text-gray-900 dark:text-white'}`}>{admin.name}</h4>
+                <p className="text-[8px] text-gray-500 font-bold uppercase tracking-[0.3em] mt-1.5">{admin.sub}</p>
+              </div>
+            </button>
+          ))}
+        </div>
       </section>
 
       {/* Breathing Tool */}
@@ -119,16 +151,6 @@ const Home: React.FC<HomeProps> = ({ onStart }) => {
           </div>
         ))}
       </div>
-      
-      {ventCount > 0 && (
-        <div className="flex items-center justify-center gap-4">
-          <div className="h-px w-12 bg-gray-200 dark:bg-gray-800"></div>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.4em]">
-            {ventCount} Cerita Terlindungi
-          </p>
-          <div className="h-px w-12 bg-gray-200 dark:bg-gray-800"></div>
-        </div>
-      )}
     </div>
   );
 };

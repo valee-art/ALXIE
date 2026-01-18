@@ -15,9 +15,9 @@ const Navigation: React.FC<NavigationProps> = ({ currentPage, onNavigate, isDark
   const navItems = [
     { label: 'Beranda', page: Page.Home },
     { label: 'Curhat', page: Page.Venting },
+    { label: 'Komunitas', page: Page.Community },
     { label: 'Jurnal', page: Page.Journal },
     { label: 'Kontak', page: Page.Contact },
-    { label: 'Disclaimer', page: Page.Disclaimer },
   ];
 
   const bgColor = isDarkMode ? 'bg-black/80' : 'bg-white/80';

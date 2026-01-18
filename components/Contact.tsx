@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { trackAdminContact } from '../services/dbService';
 
 interface ContactProps {
   isDarkMode: boolean;
@@ -10,31 +11,49 @@ const Contact: React.FC<ContactProps> = ({ isDarkMode }) => {
   const textColor = isDarkMode ? 'text-gray-300' : 'text-gray-600';
   const headingColor = isDarkMode ? 'text-white' : 'text-gray-900';
 
+  const admins = [
+    { name: 'Admin ALXIE', phone: '628194068927', sub: '???', icon: '🧿' },
+    { name: 'Epy', phone: '6281572926951', sub: 'Penjaga', icon: '🛡️' },
+    { name: 'Misteri', phone: '6285133763226', sub: 'Bayangan', icon: '🌑' },
+    { name: 'ADMIN Axelia', phone: '6283140008929', sub: 'Misterius', icon: '✨' }
+  ];
+
+  const handleContact = (admin: typeof admins[0]) => {
+    trackAdminContact(admin.name);
+    window.open(`https://wa.me/${admin.phone}`, '_blank');
+  };
+
   return (
-    <div className="max-w-2xl mx-auto py-10">
-      <h2 className={`text-3xl font-bold ${headingColor} mb-6`}>Hubungi Kami</h2>
-      <div className={`${cardBg} border rounded-2xl p-8 space-y-6 transition-colors`}>
-        <p className={`${textColor} leading-relaxed`}>
-          Jika kamu memiliki pertanyaan, masukan, atau hanya ingin mengobrol satu sama lain, kamu bisa menghubungi admin ALXIE melalui WhatsApp.
+    <div className="max-w-4xl mx-auto py-10">
+      <h2 className={`text-3xl font-bold ${headingColor} mb-2`}>Teman Bicara</h2>
+      <p className={`${textColor} mb-8`}>Kami di sini untuk mendengarkan. Pilih teman yang membuatmu merasa paling aman untuk mengobrol.</p>
+      
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {admins.map((admin, idx) => (
+          <div key={idx} className={`${admin.name === 'Misteri' || admin.name === 'ADMIN Axelia' ? 'bg-black border-gray-800' : cardBg} border rounded-2xl p-6 space-y-4 hover:border-blue-500/50 transition-all group shadow-sm flex flex-col items-center text-center`}>
+            <div className="text-4xl mb-2 filter grayscale group-hover:grayscale-0 transition-all duration-500 group-hover:scale-110">
+               {admin.icon}
+            </div>
+            <div>
+              <h3 className={`text-[12px] font-bold ${admin.name === 'Misteri' || admin.name === 'ADMIN Axelia' ? 'text-white' : headingColor} group-hover:text-blue-600 transition-colors leading-tight uppercase tracking-widest`}>{admin.name}</h3>
+              <p className="text-[8px] text-gray-500 font-bold uppercase tracking-[0.3em] mt-2">{admin.sub}</p>
+            </div>
+            
+            <button 
+              onClick={() => handleContact(admin)}
+              className={`w-full text-center px-4 py-3 text-white text-[9px] font-bold rounded-xl transition-all hover:scale-105 shadow-md ${admin.name === 'Misteri' || admin.name === 'ADMIN Axelia' ? 'bg-gray-800 hover:bg-white hover:text-black' : 'bg-gray-900 dark:bg-gray-800 hover:bg-black dark:hover:bg-gray-700'} uppercase tracking-[0.2em]`}
+            >
+              Hubungi
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-12 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 p-8 rounded-[2rem]">
+        <h4 className={`font-bold mb-2 ${headingColor}`}>Tentang Relawan Kami</h4>
+        <p className={`text-sm ${textColor} italic leading-relaxed`}>
+          "Relawan kami adalah individu yang peduli dengan kesehatan mental. Kami bukan tenaga profesional, namun kami berjanji akan menjadi teman bicara yang baik dan menjaga rahasiamu sekuat tenaga."
         </p>
-
-        <div className="p-6 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl">
-          <p className="text-sm text-blue-600 dark:text-blue-400 font-medium mb-1 uppercase tracking-wider">WhatsApp Admin ALXIE</p>
-          <a 
-            href="https://wa.me/628194068927" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className={`text-2xl font-bold ${headingColor} hover:text-blue-600 transition-colors block`}
-          >
-            +62 819-4068-927
-          </a>
-        </div>
-
-        <div className="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-900/30 p-4 rounded-lg">
-          <p className="text-sm text-yellow-700 dark:text-yellow-500 italic">
-            "Kontak ini bersifat opsional dan tidak selalu tersedia. ALXIE bukan layanan profesional atau darurat."
-          </p>
-        </div>
       </div>
     </div>
   );

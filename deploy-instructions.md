@@ -1,27 +1,24 @@
 
-# Instruksi Deploy ke Netlify (Drag and Drop)
+# Cara Menghidupkan ALXIE 🚀
 
-Karena aplikasi ini dibangun menggunakan React dan Tailwind, kamu perlu melakukan langkah berikut:
+Agar fitur AI (Curhat) bisa berfungsi, ikuti langkah super mudah ini:
 
-1. **Persiapan**: 
-   Aplikasi ini dirancang sebagai Single Page Application. Pastikan semua file (`index.html`, `App.tsx`, dll) sudah siap.
-   
-2. **Build**: 
-   Jika kamu menjalankan ini di lingkungan pengembangan lokal, jalankan perintah build (biasanya `npm run build`). 
-   *Namun, jika kamu menggunakan playground AI ini, cukup ambil folder outputnya.*
+1. **Dapatkan API Key Gratis**:
+   - Buka [Google AI Studio](https://aistudio.google.com/app/apikey).
+   - Klik **"Create API key"**.
+   - Salin (Copy) kode yang muncul (awalnya diawali `AIzaSy...`).
 
-3. **Deploy ke Netlify**:
-   - Buka [Netlify Drops](https://app.netlify.com/drop).
-   - Pastikan folder kamu berisi `index.html` di tingkat root.
-   - Seret (Drag) folder aplikasi kamu ke area yang disediakan di website Netlify.
-   - Tunggu beberapa detik hingga proses upload selesai.
-   - Website kamu akan langsung online!
+2. **Masukkan ke File**:
+   - Buka file `index.html`.
+   - Cari bagian `API_KEY: ""`.
+   - Masukkan kode tadi di antara tanda kutip, contoh: `API_KEY: "AIzaSyABC123..."`.
+   - **Simpan (Save)** file tersebut.
 
-4. **Konfigurasi Environment Variable**:
-   Aplikasi ini memerlukan Gemini API Key.
-   - Di dashboard Netlify, buka **Site settings** > **Environment variables**.
-   - Tambahkan variabel baru:
-     - Key: `API_KEY`
-     - Value: [Masukkan API Key Gemini Kamu]
+3. **Deploy (Online-kan)**:
+   - Ambil folder aplikasi kamu (yang berisi `index.html`, `App.tsx`, dll).
+   - Buka [Netlify Drop](https://app.netlify.com/drop).
+   - Seret (Drag) folder tersebut ke kotak yang tersedia.
+   - Tunggu prosesnya selesai.
 
-5. **Selesai!** Website ALXIE kamu sudah bisa diakses oleh dunia.
+4. **Selesai!** 
+   Coba buka link yang diberikan Netlify, ALXIE sekarang sudah siap mendengarkan curhatanmu.

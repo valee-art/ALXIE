@@ -1,5 +1,7 @@
 {
-  "name": "ALXIE - Peer Support & Curhat",
-  "description": "ALXIE adalah ruang curhat dan dukungan emosional untuk remaja, anak muda, dan orang tua. Platform peer support yang hangat, tenang, dan aman.",
-  "requestFramePermissions": []
+  "name": "ALXIE Support",
+  "description": "Ruang curhat dan dukungan emosional yang hangat, aman, dan anonim.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }
