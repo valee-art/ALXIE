@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { VentData, AIResponse } from '../types';
-import { getAIResponse, generateTTS, decodeBase64Audio, decodeAudioData, getApiKey } from '../services/geminiService';
+import { getAIResponse, generateTTS, decodeBase64Audio, decodeAudioData } from '../services/geminiService';
 import { saveVentData } from '../services/dbService';
 
 const MOODS = [
@@ -30,23 +30,17 @@ const VentingForm: React.FC = () => {
     if (!formData.pesan.trim()) return;
     if (!formData.consent) { setError("Klik kotak persetujuan dulu ya..."); return; }
 
-    const key = getApiKey();
-    if (!key) {
-      setError("Layanan AI sedang tidak tersedia.");
-      return;
-    }
-
     setIsSubmitting(true);
     try {
       const aiRes = await getAIResponse(formData.pesan, formData.mood, formData.panggilan);
+      // Simpan data secara lokal
       await saveVentData({ ...formData, ai_response: aiRes.text });
       setResponse(aiRes);
     } catch (err: any) {
-      if (err.message?.includes("429")) {
-        setError("ALXIE sedang banyak tamu. Tunggu 10 detik lalu coba lagi ya...");
-      } else {
-        setError("Koneksi ke server terputus. Coba kirim sekali lagi ya, Teman.");
-      }
+      console.error("Venting Fatal Error:", err);
+      // Jika error, geminiService sudah memberikan fallback text, 
+      // tapi jika error di level ini tetap ada, berikan pesan empati.
+      setError("Sepertinya ada sedikit kendala koneksi. Coba tekan kirim sekali lagi?");
     } finally {
       setIsSubmitting(false);
     }
@@ -67,6 +61,8 @@ const VentingForm: React.FC = () => {
         source.connect(ctx.destination);
         source.start();
       }
+    } catch (e) {
+      console.error("TTS Error", e);
     } finally {
       setIsAudioLoading(false);
     }
@@ -74,14 +70,33 @@ const VentingForm: React.FC = () => {
 
   if (response) {
     return (
-      <div className="max-w-2xl mx-auto p-8 bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-blue-100 dark:border-blue-900/30 animate-in slide-in-from-bottom-4 duration-500">
-        <h2 className="text-2xl font-bold text-blue-600 mb-4">Pesan Dari ALXIE</h2>
-        <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed mb-8 text-lg">{response.text}</p>
-        <div className="flex flex-col gap-3">
-          <button onClick={handleTTS} disabled={isAudioLoading} className="py-4 bg-blue-600 text-white rounded-2xl font-bold transition-all hover:scale-[1.02] disabled:bg-blue-400">
+      <div className="max-w-2xl mx-auto p-8 bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-2xl border border-blue-100 dark:border-blue-900/30 animate-shake">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white text-xl">✨</div>
+          <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Pesan Dari ALXIE</h2>
+        </div>
+        
+        <div className="bg-blue-50/50 dark:bg-blue-900/10 p-6 rounded-3xl border border-blue-50 dark:border-blue-900/20 mb-8">
+          <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed text-lg italic font-medium">
+            "{response.text}"
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <button 
+            onClick={handleTTS} 
+            disabled={isAudioLoading} 
+            className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-blue-700 disabled:bg-blue-400 transition-all hover:scale-[1.02] active:scale-95"
+          >
             {isAudioLoading ? "Mempersiapkan Suara..." : "🔊 Dengarkan Suara ALXIE"}
           </button>
-          <button onClick={() => setResponse(null)} className="py-3 text-gray-500 font-bold">Kembali Curhat</button>
+          
+          <button 
+            onClick={() => setResponse(null)} 
+            className="py-3 text-gray-500 font-bold uppercase tracking-widest text-[10px] hover:text-blue-500 transition-colors"
+          >
+            Kembali Bercerita
+          </button>
         </div>
       </div>
     );
@@ -89,27 +104,96 @@ const VentingForm: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto py-6">
-      <form onSubmit={handleSubmit} className="space-y-6 bg-white dark:bg-gray-900/50 p-8 rounded-3xl shadow-lg border border-gray-100 dark:border-gray-800">
-        <div className="grid grid-cols-2 gap-4">
-          <input type="text" placeholder="Panggilan" className="w-full p-3 bg-gray-50 dark:bg-black rounded-xl border dark:border-gray-800" value={formData.panggilan} onChange={(e) => setFormData({...formData, panggilan: e.target.value})} />
-          <input type="text" placeholder="WA (Opsional)" className="w-full p-3 bg-gray-50 dark:bg-black rounded-xl border dark:border-gray-800" value={formData.kontak} onChange={(e) => setFormData({...formData, kontak: e.target.value})} />
+      <form onSubmit={handleSubmit} className="space-y-8 bg-white dark:bg-gray-900/50 p-10 rounded-[2.5rem] shadow-lg border border-gray-100 dark:border-gray-800 transition-all duration-500">
+        <div className="text-center space-y-2">
+          <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter italic">Tuangkan Perasaanmu...</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">ALXIE ada di sini untuk mendengarkan tanpa menghakimi.</p>
         </div>
-        <div className="flex justify-between gap-2">
-          {MOODS.map(m => (
-            <button key={m.id} type="button" onClick={() => setFormData({...formData, mood: m.id})} className={`flex-1 p-3 rounded-xl border-2 transition-all ${formData.mood === m.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-transparent bg-gray-50 dark:bg-black'}`}>
-              <span className="text-2xl block">{m.emoji}</span>
-              <span className="text-[10px] font-bold text-gray-400">{m.label}</span>
-            </button>
-          ))}
+
+        <div className="grid grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Panggilan</label>
+            <input 
+              type="text" 
+              placeholder="Namamu?" 
+              className="w-full p-4 bg-gray-50 dark:bg-black rounded-2xl border border-transparent dark:border-gray-800 outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
+              value={formData.panggilan} 
+              onChange={(e) => setFormData({...formData, panggilan: e.target.value})} 
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Kontak (Opsional)</label>
+            <input 
+              type="text" 
+              placeholder="WA/ID?" 
+              className="w-full p-4 bg-gray-50 dark:bg-black rounded-2xl border border-transparent dark:border-gray-800 outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
+              value={formData.kontak} 
+              onChange={(e) => setFormData({...formData, kontak: e.target.value})} 
+            />
+          </div>
         </div>
-        <textarea rows={5} placeholder="Apa yang ingin kamu bagi hari ini?" className="w-full p-4 bg-gray-50 dark:bg-black rounded-2xl border dark:border-gray-800 outline-none focus:ring-2 focus:ring-blue-500" value={formData.pesan} onChange={(e) => setFormData({...formData, pesan: e.target.value})} />
-        <div className="flex items-start gap-2 bg-gray-50 dark:bg-black/40 p-3 rounded-xl">
-          <input type="checkbox" id="consent" checked={formData.consent} onChange={(e) => setFormData({...formData, consent: e.target.checked})} className="w-5 h-5 mt-0.5 accent-blue-600" />
-          <label htmlFor="consent" className="text-[10px] text-gray-500 leading-tight">Saya sadar curhatan ini disimpan di memori lokal browser saya.</label>
+
+        <div className="space-y-3">
+          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Mood Kamu Saat Ini</label>
+          <div className="flex justify-between gap-3">
+            {MOODS.map(m => (
+              <button 
+                key={m.id} 
+                type="button" 
+                onClick={() => setFormData({...formData, mood: m.id})} 
+                className={`flex-1 flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all duration-300 ${formData.mood === m.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 scale-105' : 'border-transparent bg-gray-50 dark:bg-black hover:bg-gray-100 dark:hover:bg-gray-900'}`}
+              >
+                <span className="text-3xl mb-1">{m.emoji}</span>
+                <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">{m.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
-        {error && <p className="text-red-500 text-xs font-bold animate-shake">{error}</p>}
-        <button type="submit" disabled={isSubmitting} className="w-full py-4 bg-blue-600 text-white font-bold rounded-2xl shadow-xl hover:bg-blue-700 disabled:bg-gray-400">
-          {isSubmitting ? "ALXIE sedang berpikir..." : "Kirim Curhatan ✨"}
+
+        <div className="space-y-2">
+          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Cerita Kamu</label>
+          <textarea 
+            rows={6} 
+            placeholder="Apa yang mengganjal di hatimu? Ceritakan saja semuanya..." 
+            className="w-full p-6 bg-gray-50 dark:bg-black rounded-[2rem] border border-transparent dark:border-gray-800 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner resize-none text-lg leading-relaxed" 
+            value={formData.pesan} 
+            onChange={(e) => setFormData({...formData, pesan: e.target.value})} 
+          />
+        </div>
+
+        <div className="flex items-start gap-3 bg-blue-50/30 dark:bg-blue-900/10 p-4 rounded-2xl border border-blue-100 dark:border-blue-900/20">
+          <input 
+            type="checkbox" 
+            id="consent" 
+            checked={formData.consent} 
+            onChange={(e) => setFormData({...formData, consent: e.target.checked})} 
+            className="w-5 h-5 mt-1 accent-blue-600 rounded cursor-pointer" 
+          />
+          <label htmlFor="consent" className="text-[11px] text-gray-500 dark:text-gray-400 leading-normal cursor-pointer">
+            Saya mengerti bahwa cerita ini hanya disimpan di browser saya sendiri (Local Storage) dan ALXIE akan mendengarkan dengan sepenuh hati.
+          </label>
+        </div>
+
+        {error && (
+          <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 rounded-2xl animate-shake">
+            <p className="text-red-600 dark:text-red-400 text-xs font-bold text-center">{error}</p>
+          </div>
+        )}
+
+        <button 
+          type="submit" 
+          disabled={isSubmitting || !formData.pesan.trim()} 
+          className="w-full py-5 bg-blue-600 text-white font-black rounded-[2rem] shadow-2xl hover:bg-blue-700 disabled:bg-gray-400 transition-all active:scale-95 transform hover:-translate-y-1 uppercase tracking-widest text-sm"
+        >
+          {isSubmitting ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              ALXIE sedang menyimak...
+            </span>
+          ) : "Kirim Cerita Ke ALXIE ✨"}
         </button>
       </form>
     </div>

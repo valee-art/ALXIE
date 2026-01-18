@@ -1,24 +1,35 @@
 
-# Cara Menghidupkan ALXIE 🚀
+# Panduan Deploy ALXIE ke Vercel 🚀
 
-Agar fitur AI (Curhat) bisa berfungsi, ikuti langkah super mudah ini:
+Jika AI ALXIE "masih error", ikuti langkah-langkah ini di dashboard Vercel Anda:
 
-1. **Dapatkan API Key Gratis**:
-   - Buka [Google AI Studio](https://aistudio.google.com/app/apikey).
-   - Klik **"Create API key"**.
-   - Salin (Copy) kode yang muncul (awalnya diawali `AIzaSy...`).
+### 1. Masuk ke Dashboard Vercel
+Buka [Vercel](https://vercel.com/) dan pilih proyek **ALXIE** Anda.
 
-2. **Masukkan ke File**:
-   - Buka file `index.html`.
-   - Cari bagian `API_KEY: ""`.
-   - Masukkan kode tadi di antara tanda kutip, contoh: `API_KEY: "AIzaSyABC123..."`.
-   - **Simpan (Save)** file tersebut.
+### 2. Atur Environment Variables
+Ini langkah yang paling krusial agar AI berfungsi:
+- Klik tab **Settings** di atas.
+- Klik menu **Environment Variables** di sisi kiri.
+- Tambahkan variabel baru:
+  - **Key**: `API_KEY`
+  - **Value**: (Tempelkan API Key dari Google AI Studio, contoh: `AIzaSy...`)
+- Klik **Save**.
 
-3. **Deploy (Online-kan)**:
-   - Ambil folder aplikasi kamu (yang berisi `index.html`, `App.tsx`, dll).
-   - Buka [Netlify Drop](https://app.netlify.com/drop).
-   - Seret (Drag) folder tersebut ke kotak yang tersedia.
-   - Tunggu prosesnya selesai.
+### 3. Lakukan Redeploy (PENTING)
+Vercel tidak akan membaca kunci baru sampai Anda melakukan deploy ulang:
+- Klik tab **Deployments**.
+- Cari deployment paling atas (terbaru).
+- Klik titik tiga `...` di sebelah kanan.
+- Pilih **Redeploy**.
+- Tunggu proses build selesai.
 
-4. **Selesai!** 
-   Coba buka link yang diberikan Netlify, ALXIE sekarang sudah siap mendengarkan curhatanmu.
+### 4. Cara Cek Jika Masih Error
+Jika AI masih tidak merespons:
+1. Buka website ALXIE Anda.
+2. Tekan tombol **F12** (atau klik kanan > Inspect) lalu pilih tab **Console**.
+3. Jika ada tulisan `ALXIE: API_KEY is missing`, berarti kunci Anda belum terpasang dengan benar di Vercel.
+4. Pastikan Anda tidak memasukkan tanda kutip dalam kolom "Value" di Vercel.
+
+### Cara Mendapatkan API Key Gratis:
+- Buka [Google AI Studio](https://aistudio.google.com/app/apikey).
+- Klik **Create API Key**.
