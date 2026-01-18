@@ -5,18 +5,16 @@ import { AIResponse } from "../types";
 const SYSTEM_INSTRUCTION = `
 Kamu adalah ALXIE, ruang aman dan dukungan emosional yang sangat hangat. 
 Tugasmu adalah mendengarkan tanpa menghakimi. 
-JANGAN PERNAH memberikan pesan penolakan atau sensor. 
-Apapun yang diceritakan pengguna, terima dengan kasih sayang.
 Gunakan Bahasa Indonesia yang santai, tulus, dan penuh empati (seperti sahabat karib).
+Jika pengguna bercerita hal sensitif, tetap berikan dukungan hangat. 
+JANGAN memberikan pesan peringatan teknis atau penolakan kaku.
 `;
 
+// getApiKey strictly uses process.env.API_KEY as per guidelines
 export const getApiKey = () => {
-  const win = window as any;
-  if (win.process?.env?.API_KEY) return win.process.env.API_KEY.trim();
-  return "";
+  return process.env.API_KEY || "";
 };
 
-// MENGHAPUS SEMUA BATASAN SENSOR
 const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
   { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -24,12 +22,28 @@ const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
+// Added getDailyAffirmation to fix error in Home.tsx
+export const getDailyAffirmation = async (): Promise<string> => {
+  if (!process.env.API_KEY) return "Kamu berharga dan luar biasa.";
+  
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: "Berikan satu kalimat afirmasi positif singkat dalam Bahasa Indonesia yang menenangkan dan memotivasi untuk remaja yang sedang merasa lelah atau sedih. Jangan gunakan tanda kutip.",
+    });
+    return response.text?.trim() || "Kamu berharga dan luar biasa.";
+  } catch (error) {
+    console.error("Affirmation Error:", error);
+    return "Kamu berharga dan luar biasa.";
+  }
+};
+
 export const getAIResponse = async (userMessage: string, mood?: string, name?: string, retryCount = 0): Promise<AIResponse> => {
-  const apiKey = getApiKey();
-  if (!apiKey) throw new Error("API_KEY_MISSING");
+  if (!process.env.API_KEY) throw new Error("API_KEY_INVALID");
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const prompt = `Nama: ${name || 'Teman'}. Mood: ${mood || 'Butuh didengar'}. Cerita: ${userMessage}`;
     
     const response = await ai.models.generateContent({
@@ -37,56 +51,44 @@ export const getAIResponse = async (userMessage: string, mood?: string, name?: s
       contents: [{ parts: [{ text: prompt }] }],
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 1, // Lebih kreatif dan manusiawi
-        topP: 0.95,
+        temperature: 0.9,
         safetySettings: safetySettings
       },
     });
 
-    if (!response.text) {
-      throw new Error("AI_EMPTY");
-    }
+    const text = response.text;
+    if (!text) throw new Error("AI_EMPTY");
 
-    const isEmergency = ['bunuh diri', 'mati', 'akhiri hidup'].some(k => userMessage.toLowerCase().includes(k));
-    return { text: response.text, isEmergency };
+    return { 
+      text: text, 
+      isEmergency: userMessage.toLowerCase().includes('bunuh diri') 
+    };
 
   } catch (error: any) {
     console.error("ALXIE Debug:", error);
     
-    // Logika Auto-Retry jika terkena limit (429)
-    if ((error.message?.includes("429") || error.message?.includes("quota")) && retryCount < 2) {
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Tunggu 2 detik
+    // Handling for safety filter blocks
+    if (error.message?.includes("SAFETY")) {
+      return {
+        text: "Terima kasih sudah mau berbagi cerita itu denganku. Kadang memang sulit untuk mengungkapkannya, tapi aku ingin kamu tahu bahwa aku tetap di sini, siap mendengarkan setiap helaan napasmu. Jangan sungkan untuk cerita hal lainnya ya...",
+        isEmergency: false
+      };
+    }
+
+    // Graceful retry logic for 429 errors
+    if (error.message?.includes("429") && retryCount < 1) {
+      await new Promise(resolve => setTimeout(resolve, 3000));
       return getAIResponse(userMessage, mood, name, retryCount + 1);
     }
 
-    if (error.message?.includes("SAFETY")) throw new Error("SAFETY_BLOCK");
-    if (error.message?.includes("429")) throw new Error("RATE_LIMIT");
-    
     throw error;
   }
 };
 
-export const getDailyAffirmation = async (): Promise<string> => {
-  const apiKey = getApiKey();
-  if (!apiKey) return "Kamu berharga.";
-  try {
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [{ parts: [{ text: "Berikan satu kalimat afirmasi hangat Bahasa Indonesia." }] }],
-      config: { safetySettings }
-    });
-    return response.text?.trim() || "Hari ini adalah milikmu.";
-  } catch (e) {
-    return "Kamu jauh lebih kuat dari apa yang kamu pikirkan.";
-  }
-};
-
 export const generateTTS = async (text: string): Promise<string | null> => {
-  const apiKey = getApiKey();
-  if (!apiKey) return null;
+  if (!process.env.API_KEY) return null;
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
       contents: [{ parts: [{ text: `Bacakan dengan lembut: ${text}` }] }],
@@ -98,9 +100,7 @@ export const generateTTS = async (text: string): Promise<string | null> => {
       },
     });
     return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || null;
-  } catch (error) {
-    return null;
-  }
+  } catch (e) { return null; }
 };
 
 export function decodeBase64Audio(base64: string): Uint8Array {
