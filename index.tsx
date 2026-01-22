@@ -1,6 +1,18 @@
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+
+// Deklarasi global agar TypeScript mengenali variabel yang disuntikkan oleh Vite
+declare global {
+  interface Window {
+    process: {
+      env: {
+        API_KEY?: string;
+      };
+    };
+  }
+}
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
