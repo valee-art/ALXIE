@@ -1,4 +1,3 @@
-
 export interface VentData {
   id?: string;
   alias?: string;
@@ -10,6 +9,7 @@ export interface VentData {
   scheduled_at?: string;
   created_at?: string;
   ai_response?: string;
+  model_used?: string;
 }
 
 export interface SupportMessage {

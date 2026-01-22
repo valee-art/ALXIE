@@ -24,9 +24,10 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Pengecekan kunci yang lebih aman untuk berbagai platform deploy
+  // Cek apakah API_KEY sudah disuntikkan oleh Vite
+  // Jika hasKey false, indikator merah akan muncul
   const apiKey = process.env.API_KEY;
-  const hasKey = !!apiKey && apiKey !== "" && apiKey !== "undefined";
+  const hasKey = typeof apiKey === 'string' && apiKey.trim().length > 10;
   
   return (
     <div className={`min-h-screen flex flex-col transition-colors duration-500 ${isDarkMode ? 'bg-black text-gray-200' : 'bg-gray-50 text-gray-800'}`}>
@@ -46,7 +47,7 @@ const App: React.FC = () => {
       {/* Status Indicator Floating Badge */}
       <div className="fixed bottom-6 left-6 z-50 pointer-events-none">
         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border shadow-2xl backdrop-blur-md transition-all duration-500 ${isOnline && hasKey ? 'bg-black/60 border-green-500/50' : 'bg-red-950/80 border-red-500/50'}`}>
-          <div className={`w-2 h-2 rounded-full animate-pulse ${isOnline && hasKey ? 'bg-green-500' : 'bg-red-500'}`}></div>
+          <div className={`w-2 h-2 rounded-full ${isOnline && hasKey ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
           <span className="text-[9px] font-black text-white uppercase tracking-[0.2em]">
             {isOnline ? (hasKey ? 'ALXIE ONLINE' : 'AI KEY MISSING') : 'OFFLINE'}
           </span>

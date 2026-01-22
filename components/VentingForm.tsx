@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { VentData, AIResponse } from '../types';
 import { getAIResponse, generateTTS, decode, decodeAudioData } from '../services/geminiService';
@@ -12,10 +11,16 @@ const MOODS = [
   { id: 'lonely', label: 'Sepi', emoji: '☁️' },
 ];
 
+const MODELS = [
+  { id: 'gemini-3-flash-preview', label: 'Mode Kilat', desc: 'Respon cepat ⚡', icon: '🚀' },
+  { id: 'gemini-3-pro-preview', label: 'Empati Dalam', desc: 'Analisis tajam 🧠', icon: '✨' },
+];
+
 const VentingForm: React.FC = () => {
   const [formData, setFormData] = useState<VentData>({
     panggilan: '', kontak: '', pesan: '', mood: '', consent: false
   });
+  const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [response, setResponse] = useState<AIResponse | null>(null);
   const [isAudioLoading, setIsAudioLoading] = useState(false);
@@ -32,9 +37,13 @@ const VentingForm: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const aiRes = await getAIResponse(formData.pesan, formData.mood, formData.panggilan);
+      const aiRes = await getAIResponse(formData.pesan, formData.mood, formData.panggilan, selectedModel);
       // Simpan data secara lokal
-      await saveVentData({ ...formData, ai_response: aiRes.text });
+      await saveVentData({ 
+        ...formData, 
+        ai_response: aiRes.text, 
+        model_used: selectedModel === 'gemini-3-flash-preview' ? 'Flash' : 'Pro' 
+      });
       setResponse(aiRes);
     } catch (err: any) {
       console.error("Venting Fatal Error:", err);
@@ -53,7 +62,6 @@ const VentingForm: React.FC = () => {
         if (!audioContextRef.current) audioContextRef.current = new AudioContext();
         const ctx = audioContextRef.current;
         const decoded = decode(base64Audio);
-        // Menggunakan signature decodeAudioData yang diperbarui sesuai pedoman
         const audioBuffer = await decodeAudioData(decoded, ctx, 24000, 1);
         const source = ctx.createBufferSource();
         source.buffer = audioBuffer;
@@ -132,18 +140,37 @@ const VentingForm: React.FC = () => {
           </div>
         </div>
 
+        {/* Model Selection */}
+        <div className="space-y-3">
+          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Kecerdasan ALXIE</label>
+          <div className="grid grid-cols-2 gap-4">
+            {MODELS.map(m => (
+              <button 
+                key={m.id} 
+                type="button" 
+                onClick={() => setSelectedModel(m.id)} 
+                className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all duration-300 ${selectedModel === m.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-md' : 'border-transparent bg-gray-50 dark:bg-black hover:border-gray-200 dark:hover:border-gray-800'}`}
+              >
+                <span className="text-xl mb-1">{m.icon}</span>
+                <span className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-tight">{m.label}</span>
+                <span className="text-[8px] text-gray-500 font-medium">{m.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="space-y-3">
           <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Mood Kamu Saat Ini</label>
-          <div className="flex justify-between gap-3">
+          <div className="flex justify-between gap-2 overflow-x-auto pb-2 scrollbar-hide">
             {MOODS.map(m => (
               <button 
                 key={m.id} 
                 type="button" 
                 onClick={() => setFormData({...formData, mood: m.id})} 
-                className={`flex-1 flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all duration-300 ${formData.mood === m.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 scale-105' : 'border-transparent bg-gray-50 dark:bg-black hover:bg-gray-100 dark:hover:bg-gray-900'}`}
+                className={`flex-shrink-0 flex flex-col items-center justify-center w-16 p-3 rounded-2xl border-2 transition-all duration-300 ${formData.mood === m.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 scale-105' : 'border-transparent bg-gray-50 dark:bg-black hover:bg-gray-100 dark:hover:bg-gray-900'}`}
               >
-                <span className="text-3xl mb-1">{m.emoji}</span>
-                <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">{m.label}</span>
+                <span className="text-2xl mb-1">{m.emoji}</span>
+                <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">{m.label}</span>
               </button>
             ))}
           </div>

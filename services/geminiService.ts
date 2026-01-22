@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Modality, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { AIResponse } from "../types";
 
@@ -19,20 +18,23 @@ const safetySettings = [
 
 /**
  * Mendapatkan respon AI untuk curhatan pengguna.
- * Mengikuti pedoman inisialisasi GoogleGenAI dengan process.env.API_KEY.
+ * @param modelName - Nama model yang digunakan ('gemini-3-flash-preview' atau 'gemini-3-pro-preview')
  */
-export const getAIResponse = async (userMessage: string, mood?: string, name?: string): Promise<AIResponse> => {
+export const getAIResponse = async (
+  userMessage: string, 
+  mood?: string, 
+  name?: string, 
+  modelName: string = 'gemini-3-flash-preview'
+): Promise<AIResponse> => {
   try {
-    // Inisialisasi sesuai pedoman: Always use new GoogleGenAI({apiKey: process.env.API_KEY});
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: modelName,
       contents: `Nama: ${name || 'Teman'}\nMood: ${mood || 'Butuh teman bicara'}\nCurhatan: ${userMessage}`,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         temperature: 0.9,
       },
-      // Safety settings diletakkan di luar config sesuai struktur standard GenerateContentParameters
       safetySettings: safetySettings
     });
 
