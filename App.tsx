@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Page } from './types';
 import Navigation from './components/Navigation';
@@ -13,7 +12,7 @@ import Footer from './components/Footer';
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>(Page.Home);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
-  const [isOnline, setIsOnline] = useState(true);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
     const handleStatus = () => setIsOnline(navigator.onLine);
@@ -25,7 +24,9 @@ const App: React.FC = () => {
     };
   }, []);
 
-  const hasKey = process.env.API_KEY && process.env.API_KEY !== "undefined";
+  // Pengecekan kunci yang lebih aman
+  const apiKey = process.env.API_KEY;
+  const hasKey = !!apiKey && apiKey !== "" && apiKey !== "undefined";
   
   return (
     <div className={`min-h-screen flex flex-col transition-colors duration-500 ${isDarkMode ? 'bg-black text-gray-200' : 'bg-gray-50 text-gray-800'}`}>
