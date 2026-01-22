@@ -17,29 +17,23 @@ const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
+/**
+ * Mendapatkan respon AI untuk curhatan pengguna.
+ * Mengikuti pedoman inisialisasi GoogleGenAI dengan process.env.API_KEY.
+ */
 export const getAIResponse = async (userMessage: string, mood?: string, name?: string): Promise<AIResponse> => {
-  // process.env.API_KEY sekarang akan disuntikkan oleh vite.config.ts
-  const apiKey = process.env.API_KEY;
-  
-  if (!apiKey || apiKey === "undefined") {
-    console.error("ALXIE Error: API_KEY is missing or undefined in browser context.");
-    return getFallbackResponse(userMessage);
-  }
-
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    // Inisialisasi sesuai pedoman: Always use new GoogleGenAI({apiKey: process.env.API_KEY});
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: [{ 
-        parts: [{ 
-          text: `Nama: ${name || 'Teman'}\nMood: ${mood || 'Butuh teman bicara'}\nCurhatan: ${userMessage}` 
-        }] 
-      }],
+      contents: `Nama: ${name || 'Teman'}\nMood: ${mood || 'Butuh teman bicara'}\nCurhatan: ${userMessage}`,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         temperature: 0.9,
-        safetySettings: safetySettings
       },
+      // Safety settings diletakkan di luar config sesuai struktur standard GenerateContentParameters
+      safetySettings: safetySettings
     });
 
     const text = response.text;
@@ -74,12 +68,12 @@ const isEmergencyText = (text: string) => {
   return lower.includes('bunuh diri') || lower.includes('akhiri hidup') || lower.includes('menyakiti diri');
 };
 
+/**
+ * Menghasilkan afirmasi harian menggunakan Gemini.
+ */
 export const getDailyAffirmation = async (): Promise<string> => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey || apiKey === "undefined") return "Kamu berharga dan luar biasa apa adanya.";
-  
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: "Berikan satu kalimat afirmasi positif Bahasa Indonesia yang sangat singkat dan hangat. Tanpa tanda kutip.",
@@ -90,40 +84,57 @@ export const getDailyAffirmation = async (): Promise<string> => {
   }
 };
 
+/**
+ * Menghasilkan audio TTS menggunakan gemini-2.5-flash-preview-tts.
+ */
 export const generateTTS = async (text: string): Promise<string | null> => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey || apiKey === "undefined") return null;
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
       contents: [{ parts: [{ text: `Bacakan dengan lembut: ${text}` }] }],
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: {
-          voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: 'Kore' },
+          },
         },
       },
     });
     return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || null;
-  } catch {
+  } catch (e) {
+    console.error("TTS generation error", e);
     return null; 
   }
 };
 
-export function decodeBase64Audio(base64: string): Uint8Array {
+/**
+ * Fungsi dekode base64 ke Uint8Array sesuai pedoman.
+ */
+export function decode(base64: string): Uint8Array {
   const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
     bytes[i] = binaryString.charCodeAt(i);
   }
   return bytes;
 }
 
-export async function decodeAudioData(data: Uint8Array, ctx: AudioContext, sampleRate: number = 24000, numChannels: number = 1): Promise<AudioBuffer> {
-  const dataInt16 = new Int16Array(data.buffer, data.byteOffset, data.byteLength / 2);
+/**
+ * Fungsi dekode audio PCM raw sesuai pedoman Live API.
+ */
+export async function decodeAudioData(
+  data: Uint8Array,
+  ctx: AudioContext,
+  sampleRate: number,
+  numChannels: number,
+): Promise<AudioBuffer> {
+  const dataInt16 = new Int16Array(data.buffer);
   const frameCount = dataInt16.length / numChannels;
   const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+
   for (let channel = 0; channel < numChannels; channel++) {
     const channelData = buffer.getChannelData(channel);
     for (let i = 0; i < frameCount; i++) {

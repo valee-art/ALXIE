@@ -74,12 +74,13 @@ const Home: React.FC<HomeProps> = ({ onStart }) => {
           <p className="text-gray-500 dark:text-gray-400 text-sm">Pilih teman yang ingin kamu ajak ngobrol langsung di WhatsApp:</p>
         </div>
         
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto px-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 max-w-6xl mx-auto px-4">
           {[
             { name: "Admin ALXIE", num: "628194068927", sub: "???", icon: "🧿" },
             { name: "Epy", num: "6281572926951", sub: "Penjaga", icon: "🛡️" },
             { name: "Misteri", num: "6285133763226", sub: "Bayangan", icon: "🌑" },
-            { name: "ADMIN Axelia", num: "6283140008929", sub: "Misterius", icon: "✨" }
+            { name: "ADMIN Axelia", num: "6283140008929", sub: "Misterius", icon: "✨" },
+            { name: "Angel", num: "6288983634264", sub: "Pendengar", icon: "👼" }
           ].map(admin => (
             <button 
               key={admin.name}

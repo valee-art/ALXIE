@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { VentData, AIResponse } from '../types';
-import { getAIResponse, generateTTS, decodeBase64Audio, decodeAudioData } from '../services/geminiService';
+import { getAIResponse, generateTTS, decode, decodeAudioData } from '../services/geminiService';
 import { saveVentData } from '../services/dbService';
 
 const MOODS = [
@@ -38,8 +38,6 @@ const VentingForm: React.FC = () => {
       setResponse(aiRes);
     } catch (err: any) {
       console.error("Venting Fatal Error:", err);
-      // Jika error, geminiService sudah memberikan fallback text, 
-      // tapi jika error di level ini tetap ada, berikan pesan empati.
       setError("Sepertinya ada sedikit kendala koneksi. Coba tekan kirim sekali lagi?");
     } finally {
       setIsSubmitting(false);
@@ -54,8 +52,9 @@ const VentingForm: React.FC = () => {
       if (base64Audio) {
         if (!audioContextRef.current) audioContextRef.current = new AudioContext();
         const ctx = audioContextRef.current;
-        const decoded = decodeBase64Audio(base64Audio);
-        const audioBuffer = await decodeAudioData(decoded, ctx);
+        const decoded = decode(base64Audio);
+        // Menggunakan signature decodeAudioData yang diperbarui sesuai pedoman
+        const audioBuffer = await decodeAudioData(decoded, ctx, 24000, 1);
         const source = ctx.createBufferSource();
         source.buffer = audioBuffer;
         source.connect(ctx.destination);

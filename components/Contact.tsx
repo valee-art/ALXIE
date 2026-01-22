@@ -25,7 +25,8 @@ const Contact: React.FC<ContactProps> = ({ isDarkMode }) => {
     { name: 'Admin ALXIE', phone: '628194068927', sub: '???', icon: '🧿' },
     { name: 'Epy', phone: '6281572926951', sub: 'Penjaga', icon: '🛡️' },
     { name: 'Misteri', phone: '6285133763226', sub: 'Bayangan', icon: '🌑' },
-    { name: 'ADMIN Axelia', phone: '6283140008929', sub: 'Misterius', icon: '✨' }
+    { name: 'ADMIN Axelia', phone: '6283140008929', sub: 'Misterius', icon: '✨' },
+    { name: 'Angel', phone: '6288983634264', sub: 'Pendengar', icon: '👼' }
   ];
 
   const handleContact = (admin: typeof admins[0]) => {

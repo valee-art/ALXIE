@@ -7,7 +7,8 @@ const ADMIN_ICONS: Record<string, string> = {
   'Admin ALXIE': '🧿',
   'Epy': '🛡️',
   'Misteri': '🌑',
-  'ADMIN Axelia': '✨'
+  'ADMIN Axelia': '✨',
+  'Angel': '👼'
 };
 
 const Journal: React.FC = () => {
