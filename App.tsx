@@ -24,7 +24,7 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Pengecekan kunci yang lebih aman
+  // Pengecekan kunci yang lebih aman untuk berbagai platform deploy
   const apiKey = process.env.API_KEY;
   const hasKey = !!apiKey && apiKey !== "" && apiKey !== "undefined";
   
@@ -43,11 +43,11 @@ const App: React.FC = () => {
 
       <Footer onNavigate={setCurrentPage} isDarkMode={isDarkMode} />
       
-      {/* Dynamic Status Indicator */}
-      <div className="fixed bottom-4 left-4 z-50 transition-opacity duration-500 opacity-60 hover:opacity-100">
-        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border shadow-lg ${isOnline && hasKey ? 'bg-gray-900 border-green-500/30' : 'bg-red-950 border-red-500/30'}`}>
+      {/* Status Indicator Floating Badge */}
+      <div className="fixed bottom-6 left-6 z-50 pointer-events-none">
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border shadow-2xl backdrop-blur-md transition-all duration-500 ${isOnline && hasKey ? 'bg-black/60 border-green-500/50' : 'bg-red-950/80 border-red-500/50'}`}>
           <div className={`w-2 h-2 rounded-full animate-pulse ${isOnline && hasKey ? 'bg-green-500' : 'bg-red-500'}`}></div>
-          <span className="text-[9px] font-black text-white uppercase tracking-widest">
+          <span className="text-[9px] font-black text-white uppercase tracking-[0.2em]">
             {isOnline ? (hasKey ? 'ALXIE ONLINE' : 'AI KEY MISSING') : 'OFFLINE'}
           </span>
         </div>
