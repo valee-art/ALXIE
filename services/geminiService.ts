@@ -1,4 +1,5 @@
-import { GoogleGenAI, Modality, HarmCategory, HarmBlockThreshold } from "@google/genai";
+
+import { GoogleGenAI, Modality } from "@google/genai";
 import { AIResponse, ReflectionEntry, ChatMessage } from "../types";
 
 const RELAWAN_INSTRUCTIONS: Record<string, string> = {
@@ -17,13 +18,6 @@ Jangan pernah menjawab kaku atau teknis.
 Jika terjadi error, tetap berikan pesan dukungan yang menenangkan.
 `;
 
-const safetySettings = [
-  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-];
-
 export const getAIResponse = async (
   userMessage: string, 
   mood?: string, 
@@ -31,6 +25,7 @@ export const getAIResponse = async (
   modelName: string = 'gemini-3-flash-preview'
 ): Promise<AIResponse> => {
   try {
+    // Fix: Always create fresh instance right before use
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: modelName,
@@ -39,9 +34,9 @@ export const getAIResponse = async (
         systemInstruction: SYSTEM_INSTRUCTION,
         temperature: 0.9,
       },
-      safetySettings: safetySettings
     });
 
+    // Fix: Access response text as a property, not a method
     const text = response.text;
     if (!text) throw new Error("Empty AI response");
 
@@ -123,6 +118,7 @@ export const getDailyAffirmation = async (): Promise<string> => {
 export const generateTTS = async (text: string): Promise<string | null> => {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // Fix: contents structure refined to match GenerateContentParameters array format as per guidelines
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
       contents: [{ parts: [{ text: `Bacakan dengan lembut: ${text}` }] }],

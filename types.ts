@@ -36,11 +36,13 @@ export interface ChatMessage {
   timestamp: string;
 }
 
+// Added optional last_updated field to track chat session freshness
 export interface ChatSession {
   id: string;
   adminName: string;
   adminIcon: string;
   messages: ChatMessage[];
+  last_updated?: string;
 }
 
 export interface SupportMessage {

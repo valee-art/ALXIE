@@ -1,188 +1,179 @@
-
-import { initializeApp } from "firebase/app";
-import { 
-  getFirestore, 
-  collection, 
-  addDoc, 
-  onSnapshot, 
-  query, 
-  orderBy, 
-  doc, 
-  updateDoc,
-  serverTimestamp,
-  setDoc,
-  getDoc,
-  getDocs
-} from "firebase/firestore";
 import { VentData, SupportMessage, ReflectionEntry, ChatSession } from "../types";
 
-// Konfigurasi Firebase ALXIE milik Anda
-const firebaseConfig = {
-  apiKey: "AIzaSyDRO6ddNka5Qmh76GrtdZv-pWcsQtk1EfQ",
-  authDomain: "alxie-9e94c.firebaseapp.com",
-  projectId: "alxie-9e94c",
-  storageBucket: "alxie-9e94c.firebasestorage.app",
-  messagingSenderId: "48310248319",
-  appId: "1:48310248319:web:fc8954759eaa9f2f18304a",
-  measurementId: "G-QWFLGHPT0L"
+// Helper untuk LocalStorage
+const STORAGE_KEYS = {
+  VENTS: 'alxie_vents',
+  REFLECTIONS: 'alxie_reflections',
+  COMMUNITY: 'alxie_community',
+  CHATS: 'alxie_chats',
+  ADMIN_CONTACTS: 'alxie_admin_contacts'
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const getLocal = <T>(key: string, defaultValue: T): T => {
+  const data = localStorage.getItem(key);
+  return data ? JSON.parse(data) : defaultValue;
+};
 
-// --- VENTING (CURHATAN) ---
+const setLocal = (key: string, data: any) => {
+  localStorage.setItem(key, JSON.stringify(data));
+  // Trigger event untuk simulasi real-time antar komponen di tab yang sama
+  window.dispatchEvent(new Event('storage_update'));
+};
+
+// --- SEED DATA ---
+export const seedInitialData = async () => {
+  const community = getLocal<SupportMessage[]>(STORAGE_KEYS.COMMUNITY, []);
+  if (community.length === 0) {
+    const seed: SupportMessage = {
+      id: 'seed-1',
+      sender: "ALXIE Bot",
+      text: "Selamat datang! Kamu tidak sendirian. Kami di sini untuk mendengarkanmu.",
+      created_at: new Date().toISOString(),
+      emoji: "🚀",
+      reactions: { "❤️": 1 }
+    };
+    setLocal(STORAGE_KEYS.COMMUNITY, [seed]);
+  }
+  return true;
+};
+
+// --- VENTING ---
 export const saveVentData = async (data: any): Promise<boolean> => {
-  if (!data.consent) return false;
   try {
-    await addDoc(collection(db, "vents"), {
+    const vents = getLocal<VentData[]>(STORAGE_KEYS.VENTS, []);
+    const newVent: VentData = {
+      id: crypto.randomUUID(),
       ...data,
       created_at: new Date().toISOString(),
-      server_timestamp: serverTimestamp(),
       status: 'new'
-    });
+    };
+    setLocal(STORAGE_KEYS.VENTS, [newVent, ...vents]);
     return true;
-  } catch (e) { 
-    console.error("Firebase Error:", e);
-    return false; 
+  } catch (e) {
+    return false;
   }
 };
 
 export const subscribeToVents = (callback: (data: VentData[]) => void) => {
-  const q = query(collection(db, "vents"), orderBy("server_timestamp", "desc"));
-  return onSnapshot(q, (snapshot) => {
-    const vents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as VentData));
-    callback(vents);
-  });
+  const update = () => callback(getLocal<VentData[]>(STORAGE_KEYS.VENTS, []));
+  update();
+  window.addEventListener('storage_update', update);
+  return () => window.removeEventListener('storage_update', update);
 };
 
-// --- REFLECTION (REFLEKSI) ---
+// --- REFLECTION ---
 export const saveReflection = async (entry: any) => {
   try {
-    await addDoc(collection(db, "reflections"), {
+    const reflections = getLocal<ReflectionEntry[]>(STORAGE_KEYS.REFLECTIONS, []);
+    const newReflection: ReflectionEntry = {
+      id: crypto.randomUUID(),
       ...entry,
-      server_timestamp: serverTimestamp(),
+      created_at: new Date().toISOString(),
       status: 'new'
-    });
+    };
+    setLocal(STORAGE_KEYS.REFLECTIONS, [newReflection, ...reflections]);
+    return true;
   } catch (e) {
-    console.error("Firebase Reflection Error:", e);
+    return false;
   }
 };
 
 export const subscribeToReflections = (callback: (data: ReflectionEntry[]) => void) => {
-  const q = query(collection(db, "reflections"), orderBy("server_timestamp", "desc"));
-  return onSnapshot(q, (snapshot) => {
-    const reflections = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ReflectionEntry));
-    callback(reflections);
-  });
+  const update = () => callback(getLocal<ReflectionEntry[]>(STORAGE_KEYS.REFLECTIONS, []));
+  update();
+  window.addEventListener('storage_update', update);
+  return () => window.removeEventListener('storage_update', update);
 };
 
 // --- ADMIN REPLY ---
 export const updateAdminReply = async (type: 'vent' | 'reflection', id: string, replyText: string) => {
-  const collectionName = type === 'vent' ? 'vents' : 'reflections';
-  try {
-    const docRef = doc(db, collectionName, id);
-    await updateDoc(docRef, {
+  const key = type === 'vent' ? STORAGE_KEYS.VENTS : STORAGE_KEYS.REFLECTIONS;
+  const items = getLocal<any[]>(key, []);
+  const index = items.findIndex(i => i.id === id);
+  
+  if (index !== -1) {
+    items[index] = {
+      ...items[index],
       admin_reply: replyText,
       admin_replied_at: new Date().toISOString(),
       status: 'replied'
-    });
+    };
+    setLocal(key, items);
     return true;
-  } catch (e) { 
-    console.error("Update Admin Reply Error:", e);
-    return false; 
   }
+  return false;
 };
 
-// --- CHAT SESSIONS (RELAWAN) ---
+// --- CHAT SESSIONS ---
 export const saveChatSession = async (session: ChatSession) => {
-  try {
-    await setDoc(doc(db, "chats", session.id), {
-      ...session,
-      updated_at: serverTimestamp()
-    });
-  } catch (e) {}
+  const chats = getLocal<Record<string, ChatSession>>(STORAGE_KEYS.CHATS, {});
+  // Fix: last_updated is now officially supported in ChatSession interface
+  chats[session.id] = {
+    ...session,
+    last_updated: new Date().toISOString()
+  };
+  setLocal(STORAGE_KEYS.CHATS, chats);
 };
 
 export const subscribeToChatSession = (id: string, callback: (session: ChatSession | null) => void) => {
-  return onSnapshot(doc(db, "chats", id), (doc) => {
-    if (doc.exists()) {
-      callback({ id: doc.id, ...doc.data() } as ChatSession);
-    } else {
-      callback(null);
-    }
-  });
+  const update = () => {
+    const chats = getLocal<Record<string, ChatSession>>(STORAGE_KEYS.CHATS, {});
+    callback(chats[id] || null);
+  };
+  update();
+  window.addEventListener('storage_update', update);
+  return () => window.removeEventListener('storage_update', update);
 };
 
-export const getChatSession = async (id: string): Promise<ChatSession | null> => {
-  try {
-    const docRef = doc(db, "chats", id);
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-      return { id: snap.id, ...snap.data() } as ChatSession;
-    }
-    return null;
-  } catch (e) {
-    return null;
-  }
+// Fungsi Baru: Subscribe ke semua chat untuk Admin
+export const subscribeToAllChatSessions = (callback: (sessions: ChatSession[]) => void) => {
+  const update = () => {
+    const chats = getLocal<Record<string, ChatSession>>(STORAGE_KEYS.CHATS, {});
+    // Removed redundant any casts as ChatSession now includes last_updated
+    const sessionList = Object.values(chats).sort((a, b) => 
+      new Date(b.last_updated || 0).getTime() - new Date(a.last_updated || 0).getTime()
+    );
+    callback(sessionList);
+  };
+  update();
+  window.addEventListener('storage_update', update);
+  return () => window.removeEventListener('storage_update', update);
 };
 
-// --- COMMUNITY (PAPAN HARAPAN) ---
+// --- COMMUNITY ---
 export const saveSupportMessage = async (msg: SupportMessage) => {
   try {
-    await addDoc(collection(db, "community"), {
-      ...msg,
-      server_timestamp: serverTimestamp()
-    });
-  } catch (e) {}
+    const messages = getLocal<SupportMessage[]>(STORAGE_KEYS.COMMUNITY, []);
+    setLocal(STORAGE_KEYS.COMMUNITY, [msg, ...messages]);
+    return true;
+  } catch (e) {
+    return false;
+  }
 };
 
 export const subscribeToCommunity = (callback: (data: SupportMessage[]) => void) => {
-  const q = query(collection(db, "community"), orderBy("server_timestamp", "desc"));
-  return onSnapshot(q, (snapshot) => {
-    const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupportMessage));
-    callback(msgs);
-  });
-};
-
-export const getSupportMessages = async (): Promise<SupportMessage[]> => {
-  try {
-    const q = query(collection(db, "community"), orderBy("server_timestamp", "desc"));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupportMessage));
-  } catch (e) {
-    return [];
-  }
+  const update = () => callback(getLocal<SupportMessage[]>(STORAGE_KEYS.COMMUNITY, []));
+  update();
+  window.addEventListener('storage_update', update);
+  return () => window.removeEventListener('storage_update', update);
 };
 
 export const addReactionToMessage = async (messageId: string, emoji: string) => {
-  try {
-    const docRef = doc(db, "community", messageId);
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-      const reactions = snap.data().reactions || {};
-      reactions[emoji] = (reactions[emoji] || 0) + 1;
-      await updateDoc(docRef, { reactions });
-      return true;
-    }
-    return false;
-  } catch (e) { return false; }
+  const messages = getLocal<SupportMessage[]>(STORAGE_KEYS.COMMUNITY, []);
+  const index = messages.findIndex(m => m.id === messageId);
+  
+  if (index !== -1) {
+    const reactions = messages[index].reactions || {};
+    reactions[emoji] = (reactions[emoji] || 0) + 1;
+    messages[index].reactions = reactions;
+    setLocal(STORAGE_KEYS.COMMUNITY, messages);
+    return true;
+  }
+  return false;
 };
 
-// --- ADMIN TRACKING & STATS ---
 export const trackAdminContact = async (adminName: string) => {
-  try {
-    await addDoc(collection(db, "admin_contacts"), {
-      adminName,
-      timestamp: serverTimestamp()
-    });
-  } catch (e) {}
+  const contacts = getLocal<any[]>(STORAGE_KEYS.ADMIN_CONTACTS, []);
+  contacts.push({ adminName, timestamp: new Date().toISOString() });
+  setLocal(STORAGE_KEYS.ADMIN_CONTACTS, contacts);
 };
-
-export const getAdminStats = async () => {
-  return { vents: 0, reflections: 0 };
-};
-
-// Fungsi fallback untuk kompatibilitas
-export const getVents = () => [];
-export const getReflections = () => [];
-export const clearReflections = () => {};

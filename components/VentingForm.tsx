@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { VentData, AIResponse } from '../types';
 import { getAIResponse, generateTTS, decode, decodeAudioData } from '../services/geminiService';
@@ -17,7 +18,8 @@ const MODELS = [
 ];
 
 const VentingForm: React.FC = () => {
-  const [formData, setFormData] = useState<VentData>({
+  // Fix: Use Partial<VentData> because form initial state doesn't have required backend fields like id, created_at, status
+  const [formData, setFormData] = useState<Partial<VentData>>({
     panggilan: '', kontak: '', pesan: '', mood: '', consent: false
   });
   const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
@@ -32,7 +34,8 @@ const VentingForm: React.FC = () => {
     e.preventDefault();
     setError(null);
     
-    if (!formData.pesan.trim()) return;
+    // Fix: Add check for pesan which is now optional in Partial state
+    if (!formData.pesan || !formData.pesan.trim()) return;
     if (!formData.consent) { setError("Klik kotak persetujuan dulu ya..."); return; }
 
     setIsSubmitting(true);
@@ -124,7 +127,7 @@ const VentingForm: React.FC = () => {
               type="text" 
               placeholder="Namamu?" 
               className="w-full p-4 bg-gray-50 dark:bg-black rounded-2xl border border-transparent dark:border-gray-800 outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
-              value={formData.panggilan} 
+              value={formData.panggilan || ''} 
               onChange={(e) => setFormData({...formData, panggilan: e.target.value})} 
             />
           </div>
@@ -134,7 +137,7 @@ const VentingForm: React.FC = () => {
               type="text" 
               placeholder="WA/ID?" 
               className="w-full p-4 bg-gray-50 dark:bg-black rounded-2xl border border-transparent dark:border-gray-800 outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
-              value={formData.kontak} 
+              value={formData.kontak || ''} 
               onChange={(e) => setFormData({...formData, kontak: e.target.value})} 
             />
           </div>
@@ -182,7 +185,7 @@ const VentingForm: React.FC = () => {
             rows={6} 
             placeholder="Apa yang mengganjal di hatimu? Ceritakan saja semuanya..." 
             className="w-full p-6 bg-gray-50 dark:bg-black rounded-[2rem] border border-transparent dark:border-gray-800 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner resize-none text-lg leading-relaxed" 
-            value={formData.pesan} 
+            value={formData.pesan || ''} 
             onChange={(e) => setFormData({...formData, pesan: e.target.value})} 
           />
         </div>
@@ -191,7 +194,7 @@ const VentingForm: React.FC = () => {
           <input 
             type="checkbox" 
             id="consent" 
-            checked={formData.consent} 
+            checked={formData.consent || false} 
             onChange={(e) => setFormData({...formData, consent: e.target.checked})} 
             className="w-5 h-5 mt-1 accent-blue-600 rounded cursor-pointer" 
           />
@@ -208,7 +211,7 @@ const VentingForm: React.FC = () => {
 
         <button 
           type="submit" 
-          disabled={isSubmitting || !formData.pesan.trim()} 
+          disabled={isSubmitting || !formData.pesan || !formData.pesan.trim()} 
           className="w-full py-5 bg-blue-600 text-white font-black rounded-[2rem] shadow-2xl hover:bg-blue-700 disabled:bg-gray-400 transition-all active:scale-95 transform hover:-translate-y-1 uppercase tracking-widest text-sm"
         >
           {isSubmitting ? (
