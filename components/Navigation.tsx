@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Page } from '../types';
 
@@ -15,6 +14,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentPage, onNavigate, isDark
   const navItems = [
     { label: 'Beranda', page: Page.Home },
     { label: 'Curhat', page: Page.Venting },
+    { label: 'Refleksi', page: Page.Reflection },
     { label: 'Komunitas', page: Page.Community },
     { label: 'Jurnal', page: Page.Journal },
     { label: 'Kontak', page: Page.Contact },

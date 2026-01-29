@@ -1,5 +1,13 @@
 import { GoogleGenAI, Modality, HarmCategory, HarmBlockThreshold } from "@google/genai";
-import { AIResponse } from "../types";
+import { AIResponse, ReflectionEntry, ChatMessage } from "../types";
+
+const RELAWAN_INSTRUCTIONS: Record<string, string> = {
+  'Admin ALXIE': 'Kamu adalah Admin ALXIE, bijak, hangat, dan sangat teratur. Gunakan bahasa yang tenang.',
+  'Epy': 'Kamu adalah Epy, si Penjaga. Kamu fokus pada keamanan emosional dan memberikan validasi yang kuat.',
+  'Misteri': 'Kamu adalah Misteri, bayangan yang mendengarkan. Bicaramu puitis, singkat, tapi sangat mendalam.',
+  'ADMIN Axelia': 'Kamu adalah Axelia, misterius namun penuh empati. Kamu suka menanyakan pertanyaan yang membuat orang berpikir ulang.',
+  'Angel': 'Kamu adalah Angel, pendengar setia. Kamu sangat lembut, ceria, dan penuh kasih sayang.'
+};
 
 const SYSTEM_INSTRUCTION = `
 Kamu adalah ALXIE, pendengar yang sangat hangat dan penuh empati. 
@@ -16,10 +24,6 @@ const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
-/**
- * Mendapatkan respon AI untuk curhatan pengguna.
- * @param modelName - Nama model yang digunakan ('gemini-3-flash-preview' atau 'gemini-3-pro-preview')
- */
 export const getAIResponse = async (
   userMessage: string, 
   mood?: string, 
@@ -52,27 +56,57 @@ export const getAIResponse = async (
   }
 };
 
-const getFallbackResponse = (message: string): AIResponse => {
-  const fallbacks = [
-    "Aku mendengarmu dengan tulus. Maaf jika aku agak lambat merespons, tapi aku ingin kamu tahu bahwa perasaanmu sangat valid. Tarik napas pelan ya, aku di sini bersamamu.",
-    "Terima kasih sudah mau berbagi cerita ini. Kamu sudah sangat hebat bisa bertahan sampai sekarang. Aku di sini untuk menemanimu sebentar.",
-    "Aku mendengarmu. Kamu tidak sendirian. Meskipun ada sedikit kendala koneksi, hatiku tetap di sini untuk mendengarkan setiap keluh kesahmu.",
-    "Jangan merasa sendirian ya. Aku menghargai keberanianmu untuk bercerita. Tetaplah bernapas dengan tenang, aku di sini."
-  ];
-  return {
-    text: fallbacks[Math.floor(Math.random() * fallbacks.length)],
-    isEmergency: isEmergencyText(message)
-  };
-};
-
-const isEmergencyText = (text: string) => {
-  const lower = text.toLowerCase();
-  return lower.includes('bunuh diri') || lower.includes('akhiri hidup') || lower.includes('menyakiti diri');
-};
-
 /**
- * Menghasilkan afirmasi harian menggunakan Gemini.
+ * Menghasilkan respon chat relawan yang spesifik dan reflektif.
  */
+export const getRelawanChatResponse = async (
+  adminName: string,
+  history: ChatMessage[],
+  context: string
+): Promise<string> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const personaInstruction = RELAWAN_INSTRUCTIONS[adminName] || RELAWAN_INSTRUCTIONS['Admin ALXIE'];
+    
+    const chatHistory = history.map(m => `${m.role === 'admin' ? adminName : 'Pengguna'}: ${m.text}`).join('\n');
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Konteks Refleksi Pengguna: ${context}\n\nRiwayat Chat:\n${chatHistory}\n\nBerikan tanggapan singkat, suportif, dan tanyakan satu pertanyaan reflektif yang berhubungan dengan ceritanya. Jangan memberi diagnosis medis.`,
+      config: {
+        systemInstruction: `${personaInstruction}. Gunakan pendekatan psikologi reflektif (mendengar aktif, validasi, dan memicu penemuan diri). Bahasa Indonesia santai dan hangat.`,
+        temperature: 0.8,
+      }
+    });
+
+    return response.text || "Aku mendengarmu. Apa ada hal lain yang ingin kamu bagikan tentang perasaan itu?";
+  } catch (e) {
+    return "Maaf, aku sedang sedikit terganggu koneksi, tapi hatiku tetap menyimakmu. Boleh ceritakan lebih lanjut?";
+  }
+};
+
+export const generateReflectionEvaluation = async (reflections: ReflectionEntry[]): Promise<string> => {
+  if (reflections.length === 0) return "Mulailah mengisi jurnal refleksi agar aku bisa memberikan evaluasi yang lebih personal untukmu.";
+  
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const context = reflections.map(r => `Emosi: ${r.emotion}, Pemicu: ${r.answers.trigger}, Cara Koping: ${r.answers.coping}`).join('\n---\n');
+    
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Berikut adalah riwayat refleksi emosiku:\n${context}\n\nTolong berikan evaluasi yang suportif, hangat, dan beri aku satu langkah kecil sederhana untuk menjaga kesehatan mentalku ke depan. Jangan menghakimi.`,
+      config: {
+        systemInstruction: "Kamu adalah ALXIE, asisten kesehatan mental suportif. Berikan ringkasan pola emosi dan saran langkah kecil.",
+        temperature: 0.7,
+      },
+    });
+    
+    return response.text || "Kamu sudah sangat hebat bisa jujur pada perasaanmu sendiri.";
+  } catch (e) {
+    return "Terima kasih sudah berefleksi hari ini. Teruslah mendengarkan suara hatimu, itu adalah langkah awal yang luar biasa.";
+  }
+};
+
 export const getDailyAffirmation = async (): Promise<string> => {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -86,9 +120,6 @@ export const getDailyAffirmation = async (): Promise<string> => {
   }
 };
 
-/**
- * Menghasilkan audio TTS menggunakan gemini-2.5-flash-preview-tts.
- */
 export const generateTTS = async (text: string): Promise<string | null> => {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -111,9 +142,6 @@ export const generateTTS = async (text: string): Promise<string | null> => {
   }
 };
 
-/**
- * Fungsi dekode base64 ke Uint8Array sesuai pedoman.
- */
 export function decode(base64: string): Uint8Array {
   const binaryString = atob(base64);
   const len = binaryString.length;
@@ -124,9 +152,6 @@ export function decode(base64: string): Uint8Array {
   return bytes;
 }
 
-/**
- * Fungsi dekode audio PCM raw sesuai pedoman Live API.
- */
 export async function decodeAudioData(
   data: Uint8Array,
   ctx: AudioContext,
@@ -145,3 +170,15 @@ export async function decodeAudioData(
   }
   return buffer;
 }
+
+const isEmergencyText = (text: string) => {
+  const lower = text.toLowerCase();
+  return lower.includes('bunuh diri') || lower.includes('akhiri hidup') || lower.includes('menyakiti diri');
+};
+
+const getFallbackResponse = (message: string): AIResponse => {
+  return {
+    text: "Aku mendengarmu. Kamu tidak sendirian. Teruslah bernapas dengan tenang, aku di sini.",
+    isEmergency: isEmergencyText(message)
+  };
+};
