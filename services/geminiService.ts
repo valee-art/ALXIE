@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Modality } from "@google/genai";
 import { AIResponse, ReflectionEntry, ChatMessage } from "../types";
 
@@ -18,6 +17,14 @@ Jangan pernah menjawab kaku atau teknis.
 Jika terjadi error, tetap berikan pesan dukungan yang menenangkan.
 `;
 
+const getAIInstance = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey || apiKey === "undefined") {
+    throw new Error("API_KEY_MISSING");
+  }
+  return new GoogleGenAI({ apiKey });
+};
+
 export const getAIResponse = async (
   userMessage: string, 
   mood?: string, 
@@ -25,20 +32,20 @@ export const getAIResponse = async (
   modelName: string = 'gemini-3-flash-preview'
 ): Promise<AIResponse> => {
   try {
-    // Fix: Always create fresh instance right before use
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = getAIInstance();
+    const prompt = `Nama: ${name || 'Teman'}\nMood: ${mood || 'Butuh teman bicara'}\nCurhatan: ${userMessage}`;
+    
     const response = await ai.models.generateContent({
       model: modelName,
-      contents: `Nama: ${name || 'Teman'}\nMood: ${mood || 'Butuh teman bicara'}\nCurhatan: ${userMessage}`,
+      contents: [{ parts: [{ text: prompt }] }],
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         temperature: 0.9,
       },
     });
 
-    // Fix: Access response text as a property, not a method
     const text = response.text;
-    if (!text) throw new Error("Empty AI response");
+    if (!text) throw new Error("EMPTY_RESPONSE");
 
     return { 
       text, 
@@ -46,68 +53,67 @@ export const getAIResponse = async (
     };
 
   } catch (error: any) {
-    console.error("ALXIE API Error:", error);
+    console.error("ALXIE API Error Detail:", error);
+    if (error.message === "API_KEY_MISSING") {
+      return { text: "Ups, ALXIE belum bisa bicara karena kunci rahasianya (API Key) belum dipasang. Harap cek panduan deploy ya!", isEmergency: false };
+    }
     return getFallbackResponse(userMessage);
   }
 };
 
-/**
- * Menghasilkan respon chat relawan yang spesifik dan reflektif.
- */
 export const getRelawanChatResponse = async (
   adminName: string,
   history: ChatMessage[],
   context: string
 ): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = getAIInstance();
     const personaInstruction = RELAWAN_INSTRUCTIONS[adminName] || RELAWAN_INSTRUCTIONS['Admin ALXIE'];
-    
     const chatHistory = history.map(m => `${m.role === 'admin' ? adminName : 'Pengguna'}: ${m.text}`).join('\n');
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Konteks Refleksi Pengguna: ${context}\n\nRiwayat Chat:\n${chatHistory}\n\nBerikan tanggapan singkat, suportif, dan tanyakan satu pertanyaan reflektif yang berhubungan dengan ceritanya. Jangan memberi diagnosis medis.`,
+      contents: [{ parts: [{ text: `Konteks Refleksi: ${context}\n\nRiwayat Chat:\n${chatHistory}\n\nBerikan tanggapan singkat, suportif, dan reflektif.` }] }],
       config: {
-        systemInstruction: `${personaInstruction}. Gunakan pendekatan psikologi reflektif (mendengar aktif, validasi, dan memicu penemuan diri). Bahasa Indonesia santai dan hangat.`,
+        systemInstruction: `${personaInstruction}. Gunakan pendekatan psikologi reflektif.`,
         temperature: 0.8,
       }
     });
 
-    return response.text || "Aku mendengarmu. Apa ada hal lain yang ingin kamu bagikan tentang perasaan itu?";
+    return response.text || "Aku mendengarmu. Ceritakan lebih lanjut...";
   } catch (e) {
-    return "Maaf, aku sedang sedikit terganggu koneksi, tapi hatiku tetap menyimakmu. Boleh ceritakan lebih lanjut?";
+    return "Maaf, koneksiku sedang sedikit terganggu, tapi aku tetap di sini menyimakmu.";
   }
 };
 
 export const generateReflectionEvaluation = async (reflections: ReflectionEntry[]): Promise<string> => {
-  if (reflections.length === 0) return "Mulailah mengisi jurnal refleksi agar aku bisa memberikan evaluasi yang lebih personal untukmu.";
+  if (reflections.length === 0) return "Mulailah mengisi jurnal refleksi agar aku bisa memberikan evaluasi yang lebih personal.";
   
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const context = reflections.map(r => `Emosi: ${r.emotion}, Pemicu: ${r.answers.trigger}, Cara Koping: ${r.answers.coping}`).join('\n---\n');
+    const ai = getAIInstance();
+    const context = reflections.map(r => `Emosi: ${r.emotion}, Pemicu: ${r.answers.trigger}`).join('\n---\n');
     
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Berikut adalah riwayat refleksi emosiku:\n${context}\n\nTolong berikan evaluasi yang suportif, hangat, dan beri aku satu langkah kecil sederhana untuk menjaga kesehatan mentalku ke depan. Jangan menghakimi.`,
+      contents: [{ parts: [{ text: `Riwayat refleksi emosi:\n${context}\n\nBerikan evaluasi suportif dan satu langkah kecil.` }] }],
       config: {
-        systemInstruction: "Kamu adalah ALXIE, asisten kesehatan mental suportif. Berikan ringkasan pola emosi dan saran langkah kecil.",
+        systemInstruction: "Kamu adalah ALXIE, asisten kesehatan mental suportif.",
         temperature: 0.7,
       },
     });
     
-    return response.text || "Kamu sudah sangat hebat bisa jujur pada perasaanmu sendiri.";
+    return response.text || "Kamu sudah hebat bisa jujur pada perasaanmu sendiri.";
   } catch (e) {
-    return "Terima kasih sudah berefleksi hari ini. Teruslah mendengarkan suara hatimu, itu adalah langkah awal yang luar biasa.";
+    return "Terima kasih sudah berefleksi hari ini. Teruslah mendengarkan suara hatimu.";
   }
 };
 
 export const getDailyAffirmation = async (): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = getAIInstance();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: "Berikan satu kalimat afirmasi positif Bahasa Indonesia yang sangat singkat dan hangat. Tanpa tanda kutip.",
+      contents: [{ parts: [{ text: "Berikan satu kalimat afirmasi positif Bahasa Indonesia yang sangat singkat dan hangat. Tanpa tanda kutip." }] }],
     });
     return response.text?.trim() || "Hari ini adalah langkah baru yang baik untukmu.";
   } catch {
@@ -117,8 +123,7 @@ export const getDailyAffirmation = async (): Promise<string> => {
 
 export const generateTTS = async (text: string): Promise<string | null> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    // Fix: contents structure refined to match GenerateContentParameters array format as per guidelines
+    const ai = getAIInstance();
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
       contents: [{ parts: [{ text: `Bacakan dengan lembut: ${text}` }] }],

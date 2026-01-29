@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Page } from './types';
 import Navigation from './components/Navigation';
@@ -48,7 +47,8 @@ const App: React.FC = () => {
   };
 
   const apiKey = process.env.API_KEY;
-  const hasKey = typeof apiKey === 'string' && apiKey.trim().length > 10;
+  // Perbaikan deteksi key: pastikan tidak "undefined" string
+  const hasKey = typeof apiKey === 'string' && apiKey.trim().length > 10 && apiKey !== "undefined";
   
   return (
     <div className={`min-h-screen flex flex-col transition-colors duration-500 ${isDarkMode ? 'bg-black text-gray-200' : 'bg-gray-50 text-gray-800'}`}>
@@ -117,7 +117,7 @@ const App: React.FC = () => {
         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border shadow-2xl backdrop-blur-md transition-all duration-500 ${isOnline && hasKey ? 'bg-indigo-950/40 border-indigo-500/30' : 'bg-red-950/80 border-red-500/50'}`}>
           <div className={`w-2 h-2 rounded-full ${isOnline && hasKey ? 'bg-indigo-400 animate-pulse' : 'bg-red-500'}`}></div>
           <span className="text-[9px] font-black text-white uppercase tracking-[0.2em]">
-            {isOnline ? (hasKey ? 'ALXIE OPERATIONAL' : 'AI AUTH ERROR') : 'OFFLINE MODE'}
+            {isOnline ? (hasKey ? 'ALXIE OPERATIONAL' : 'API KEY MISSING') : 'OFFLINE MODE'}
           </span>
         </div>
       </div>
