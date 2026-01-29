@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { SupportMessage } from '../types';
-import { saveSupportMessage, getSupportMessages, addReactionToMessage } from '../services/dbService';
+import { saveSupportMessage, subscribeToCommunity, addReactionToMessage } from '../services/dbService';
 
 const EMOJIS = ['🌟', '🌱', '☀️', '🌊', '🌈', '🕊️', '🌈', '🫂'];
 const REACTION_OPTIONS = ['❤️', '🙌', '✨', '🫂'];
@@ -12,11 +12,12 @@ const Community: React.FC = () => {
   const [isPosting, setIsPosting] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
+  // Use real-time subscription for dynamic community content
   useEffect(() => {
-    setMessages(getSupportMessages());
+    return subscribeToCommunity(setMessages);
   }, []);
 
-  const handlePost = (e: React.FormEvent) => {
+  const handlePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMsg.trim()) return;
 
@@ -30,8 +31,7 @@ const Community: React.FC = () => {
       reactions: {}
     };
 
-    saveSupportMessage(payload);
-    setMessages([payload, ...messages]);
+    await saveSupportMessage(payload);
     setNewMsg("");
     setIsPosting(false);
     
@@ -40,18 +40,9 @@ const Community: React.FC = () => {
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  const handleReaction = (messageId: string, emoji: string) => {
-    const success = addReactionToMessage(messageId, emoji);
-    if (success) {
-      setMessages(prev => prev.map(m => {
-        if (m.id === messageId) {
-          const newReactions = { ...(m.reactions || {}) };
-          newReactions[emoji] = (newReactions[emoji] || 0) + 1;
-          return { ...m, reactions: newReactions };
-        }
-        return m;
-      }));
-    }
+  const handleReaction = async (messageId: string, emoji: string) => {
+    await addReactionToMessage(messageId, emoji);
+    // Subscription will automatically update the UI state
   };
 
   return (
@@ -126,7 +117,7 @@ const Community: React.FC = () => {
 
                <div className="pt-4 border-t border-gray-50 dark:border-gray-800 flex justify-between items-center">
                  <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">Sahabat ALXIE</span>
-                 <span className="text-[9px] text-gray-400 uppercase">{new Date(m.created_at).toLocaleDateString()}</span>
+                 <span className="text-[9px] text-gray-400 uppercase">{m.created_at ? new Date(m.created_at).toLocaleDateString() : 'Baru saja'}</span>
                </div>
             </div>
           </div>

@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ChatSession, ChatMessage } from '../types';
-import { getChatSession, saveChatSession, updateAdminReply } from '../services/dbService';
+import { subscribeToChatSession, saveChatSession, updateAdminReply } from '../services/dbService';
 import { getRelawanChatResponse } from '../services/geminiService';
 
 interface AdminChatProps {
@@ -17,29 +17,8 @@ const AdminChat: React.FC<AdminChatProps> = ({ sessionId, context, onBack, isAdm
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const existing = getChatSession(sessionId);
-    if (existing) {
-      setSession(existing);
-    } else {
-      // Inisialisasi sesi baru dengan admin default
-      const newSession: ChatSession = {
-        id: sessionId,
-        adminName: 'Admin ALXIE',
-        adminIcon: '🧿',
-        messages: []
-      };
-      setSession(newSession);
-      // Trigger pesan pembuka
-      handleBotReply(newSession, []);
-    }
-  }, [sessionId]);
-
-  useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [session?.messages, isTyping]);
-
-  const handleBotReply = async (currentSession: ChatSession, history: ChatMessage[]) => {
+  // handleBotReply encapsulated in useCallback to ensure stability in side effects
+  const handleBotReply = useCallback(async (currentSession: ChatSession, history: ChatMessage[]) => {
     setIsTyping(true);
     const replyText = await getRelawanChatResponse(currentSession.adminName, history, context);
     
@@ -56,15 +35,41 @@ const AdminChat: React.FC<AdminChatProps> = ({ sessionId, context, onBack, isAdm
     };
     
     setSession(updatedSession);
-    saveChatSession(updatedSession);
+    await saveChatSession(updatedSession);
     setIsTyping(false);
-  };
+  }, [context]);
+
+  // Establish real-time subscription for the chat session
+  useEffect(() => {
+    const unsub = subscribeToChatSession(sessionId, (existing) => {
+      if (existing) {
+        setSession(existing);
+      } else {
+        // Initialize a new session if it doesn't exist yet
+        const newSession: ChatSession = {
+          id: sessionId,
+          adminName: 'Admin ALXIE',
+          adminIcon: '🧿',
+          messages: []
+        };
+        setSession(newSession);
+        // Only trigger the introductory bot response for brand new sessions
+        if (newSession.messages.length === 0) {
+          handleBotReply(newSession, []);
+        }
+      }
+    });
+    return () => unsub();
+  }, [sessionId, handleBotReply]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [session?.messages, isTyping]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || !session || isTyping) return;
 
-    // Jika isAdmin aktif, pesan ini dianggap sebagai balasan Admin resmi
     const role = isAdmin ? 'admin' : 'user';
     
     const newMsg: ChatMessage = {
@@ -79,13 +84,11 @@ const AdminChat: React.FC<AdminChatProps> = ({ sessionId, context, onBack, isAdm
     
     setSession(updatedSession);
     setInputText("");
-    saveChatSession(updatedSession);
+    await saveChatSession(updatedSession);
 
-    // Jika yang mengirim adalah Admin, kita juga update status official reply di database
     if (isAdmin) {
       updateAdminReply('reflection', sessionId, inputText);
     } else {
-      // Jika yang mengirim adalah User, AI baru membalas
       await handleBotReply(updatedSession, updatedMessages);
     }
   };

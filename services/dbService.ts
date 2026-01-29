@@ -1,120 +1,188 @@
-import { VentData, SupportMessage, ReflectionEntry, ChatSession, ChatMessage } from "../types";
 
+import { initializeApp } from "firebase/app";
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  onSnapshot, 
+  query, 
+  orderBy, 
+  doc, 
+  updateDoc,
+  serverTimestamp,
+  setDoc,
+  getDoc,
+  getDocs
+} from "firebase/firestore";
+import { VentData, SupportMessage, ReflectionEntry, ChatSession } from "../types";
+
+// Konfigurasi Firebase ALXIE milik Anda
+const firebaseConfig = {
+  apiKey: "AIzaSyDRO6ddNka5Qmh76GrtdZv-pWcsQtk1EfQ",
+  authDomain: "alxie-9e94c.firebaseapp.com",
+  projectId: "alxie-9e94c",
+  storageBucket: "alxie-9e94c.firebasestorage.app",
+  messagingSenderId: "48310248319",
+  appId: "1:48310248319:web:fc8954759eaa9f2f18304a",
+  measurementId: "G-QWFLGHPT0L"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// --- VENTING (CURHATAN) ---
 export const saveVentData = async (data: any): Promise<boolean> => {
   if (!data.consent) return false;
-  const payload: VentData = { 
-    ...data, 
-    id: crypto.randomUUID(), 
-    created_at: new Date().toISOString(),
-    status: 'new'
-  };
   try {
-    const existing = JSON.parse(localStorage.getItem('alxie_vents') || '[]');
-    existing.push(payload);
-    localStorage.setItem('alxie_vents', JSON.stringify(existing));
-    return true;
-  } catch (e) { return false; }
-};
-
-export const saveReflection = (entry: any) => {
-  try {
-    const payload: ReflectionEntry = {
-      ...entry,
+    await addDoc(collection(db, "vents"), {
+      ...data,
+      created_at: new Date().toISOString(),
+      server_timestamp: serverTimestamp(),
       status: 'new'
-    };
-    const existing = JSON.parse(localStorage.getItem('alxie_reflections') || '[]');
-    existing.push(payload);
-    localStorage.setItem('alxie_reflections', JSON.stringify(existing));
+    });
+    return true;
+  } catch (e) { 
+    console.error("Firebase Error:", e);
+    return false; 
+  }
+};
+
+export const subscribeToVents = (callback: (data: VentData[]) => void) => {
+  const q = query(collection(db, "vents"), orderBy("server_timestamp", "desc"));
+  return onSnapshot(q, (snapshot) => {
+    const vents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as VentData));
+    callback(vents);
+  });
+};
+
+// --- REFLECTION (REFLEKSI) ---
+export const saveReflection = async (entry: any) => {
+  try {
+    await addDoc(collection(db, "reflections"), {
+      ...entry,
+      server_timestamp: serverTimestamp(),
+      status: 'new'
+    });
+  } catch (e) {
+    console.error("Firebase Reflection Error:", e);
+  }
+};
+
+export const subscribeToReflections = (callback: (data: ReflectionEntry[]) => void) => {
+  const q = query(collection(db, "reflections"), orderBy("server_timestamp", "desc"));
+  return onSnapshot(q, (snapshot) => {
+    const reflections = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ReflectionEntry));
+    callback(reflections);
+  });
+};
+
+// --- ADMIN REPLY ---
+export const updateAdminReply = async (type: 'vent' | 'reflection', id: string, replyText: string) => {
+  const collectionName = type === 'vent' ? 'vents' : 'reflections';
+  try {
+    const docRef = doc(db, collectionName, id);
+    await updateDoc(docRef, {
+      admin_reply: replyText,
+      admin_replied_at: new Date().toISOString(),
+      status: 'replied'
+    });
+    return true;
+  } catch (e) { 
+    console.error("Update Admin Reply Error:", e);
+    return false; 
+  }
+};
+
+// --- CHAT SESSIONS (RELAWAN) ---
+export const saveChatSession = async (session: ChatSession) => {
+  try {
+    await setDoc(doc(db, "chats", session.id), {
+      ...session,
+      updated_at: serverTimestamp()
+    });
   } catch (e) {}
 };
 
-export const getReflections = (): ReflectionEntry[] => {
-  try {
-    return JSON.parse(localStorage.getItem('alxie_reflections') || '[]');
-  } catch (e) { return []; }
+export const subscribeToChatSession = (id: string, callback: (session: ChatSession | null) => void) => {
+  return onSnapshot(doc(db, "chats", id), (doc) => {
+    if (doc.exists()) {
+      callback({ id: doc.id, ...doc.data() } as ChatSession);
+    } else {
+      callback(null);
+    }
+  });
 };
 
-export const getVents = (): VentData[] => {
+export const getChatSession = async (id: string): Promise<ChatSession | null> => {
   try {
-    return JSON.parse(localStorage.getItem('alxie_vents') || '[]');
-  } catch (e) { return []; }
+    const docRef = doc(db, "chats", id);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      return { id: snap.id, ...snap.data() } as ChatSession;
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
 };
 
-// Update Balasan Admin Manual
-export const updateAdminReply = (type: 'vent' | 'reflection', id: string, replyText: string) => {
-  const key = type === 'vent' ? 'alxie_vents' : 'alxie_reflections';
+// --- COMMUNITY (PAPAN HARAPAN) ---
+export const saveSupportMessage = async (msg: SupportMessage) => {
   try {
-    const data = JSON.parse(localStorage.getItem(key) || '[]');
-    const index = data.findIndex((item: any) => item.id === id);
-    if (index !== -1) {
-      data[index].admin_reply = replyText;
-      data[index].admin_replied_at = new Date().toISOString();
-      data[index].status = 'replied';
-      localStorage.setItem(key, JSON.stringify(data));
+    await addDoc(collection(db, "community"), {
+      ...msg,
+      server_timestamp: serverTimestamp()
+    });
+  } catch (e) {}
+};
+
+export const subscribeToCommunity = (callback: (data: SupportMessage[]) => void) => {
+  const q = query(collection(db, "community"), orderBy("server_timestamp", "desc"));
+  return onSnapshot(q, (snapshot) => {
+    const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupportMessage));
+    callback(msgs);
+  });
+};
+
+export const getSupportMessages = async (): Promise<SupportMessage[]> => {
+  try {
+    const q = query(collection(db, "community"), orderBy("server_timestamp", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupportMessage));
+  } catch (e) {
+    return [];
+  }
+};
+
+export const addReactionToMessage = async (messageId: string, emoji: string) => {
+  try {
+    const docRef = doc(db, "community", messageId);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      const reactions = snap.data().reactions || {};
+      reactions[emoji] = (reactions[emoji] || 0) + 1;
+      await updateDoc(docRef, { reactions });
       return true;
     }
     return false;
   } catch (e) { return false; }
 };
 
-export const saveChatSession = (session: ChatSession) => {
+// --- ADMIN TRACKING & STATS ---
+export const trackAdminContact = async (adminName: string) => {
   try {
-    const existing: Record<string, ChatSession> = JSON.parse(localStorage.getItem('alxie_chats') || '{}');
-    existing[session.id] = session;
-    localStorage.setItem('alxie_chats', JSON.stringify(existing));
+    await addDoc(collection(db, "admin_contacts"), {
+      adminName,
+      timestamp: serverTimestamp()
+    });
   } catch (e) {}
 };
 
-export const getChatSession = (id: string): ChatSession | null => {
-  try {
-    const existing: Record<string, ChatSession> = JSON.parse(localStorage.getItem('alxie_chats') || '{}');
-    return existing[id] || null;
-  } catch (e) { return null; }
+export const getAdminStats = async () => {
+  return { vents: 0, reflections: 0 };
 };
 
-export const trackAdminContact = (adminName: string) => {
-  try {
-    const stats = JSON.parse(localStorage.getItem('alxie_admin_stats') || '{}');
-    stats[adminName] = (stats[adminName] || 0) + 1;
-    localStorage.setItem('alxie_admin_stats', JSON.stringify(stats));
-  } catch (e) {}
-};
-
-export const getAdminStats = (): Record<string, number> => {
-  try { return JSON.parse(localStorage.getItem('alxie_admin_stats') || '{}'); }
-  catch (e) { return {}; }
-};
-
-export const saveSupportMessage = (msg: SupportMessage) => {
-  try {
-    const existing = JSON.parse(localStorage.getItem('alxie_community') || '[]');
-    existing.unshift(msg);
-    localStorage.setItem('alxie_community', JSON.stringify(existing));
-  } catch (e) {}
-};
-
-export const getSupportMessages = (): SupportMessage[] => {
-  try { return JSON.parse(localStorage.getItem('alxie_community') || '[]'); }
-  catch (e) { return []; }
-};
-
-// Fix: Added missing export for addReactionToMessage used in Community.tsx
-export const addReactionToMessage = (messageId: string, emoji: string): boolean => {
-  try {
-    const existing: SupportMessage[] = JSON.parse(localStorage.getItem('alxie_community') || '[]');
-    const index = existing.findIndex(m => m.id === messageId);
-    if (index !== -1) {
-      const msg = existing[index];
-      if (!msg.reactions) msg.reactions = {};
-      msg.reactions[emoji] = (msg.reactions[emoji] || 0) + 1;
-      localStorage.setItem('alxie_community', JSON.stringify(existing));
-      return true;
-    }
-    return false;
-  } catch (e) { return false; }
-};
-
-// Fix: Added missing export for clearReflections imported in Reflection.tsx
-export const clearReflections = () => {
-  localStorage.removeItem('alxie_reflections');
-};
+// Fungsi fallback untuk kompatibilitas
+export const getVents = () => [];
+export const getReflections = () => [];
+export const clearReflections = () => {};

@@ -1,16 +1,21 @@
 
 import React, { useState, useEffect } from 'react';
 import { VentData, ReflectionEntry } from '../types';
-import { getAdminStats, getVents, getReflections } from '../services/dbService';
+import { subscribeToVents, subscribeToReflections } from '../services/dbService';
 
 const Journal: React.FC = () => {
   const [vents, setVents] = useState<VentData[]>([]);
   const [reflections, setReflections] = useState<ReflectionEntry[]>([]);
   const [filter, setFilter] = useState<'all' | 'vents' | 'reflections'>('all');
 
+  // Fix: use real-time subscriptions instead of static empty getters to actually show data
   useEffect(() => {
-    setVents([...getVents()].reverse());
-    setReflections([...getReflections()].reverse());
+    const unsubVents = subscribeToVents(setVents);
+    const unsubReflections = subscribeToReflections(setReflections);
+    return () => {
+      unsubVents();
+      unsubReflections();
+    };
   }, []);
 
   const getMoodEmoji = (moodId?: string) => {
@@ -61,7 +66,7 @@ const Journal: React.FC = () => {
               <span className="text-4xl">{getMoodEmoji(entry.mood)}</span>
               <div>
                 <h4 className="font-bold text-gray-900 dark:text-white uppercase tracking-widest text-xs">Curhatan: {entry.panggilan || "Anonim"}</h4>
-                <p className="text-[10px] text-gray-400 uppercase font-black">{new Date(entry.created_at).toLocaleString()}</p>
+                <p className="text-[10px] text-gray-400 uppercase font-black">{entry.created_at ? new Date(entry.created_at).toLocaleString() : 'Baru saja'}</p>
               </div>
             </div>
 
@@ -89,7 +94,7 @@ const Journal: React.FC = () => {
               <span className="text-4xl">{entry.emoji}</span>
               <div>
                 <h4 className="font-bold text-gray-900 dark:text-white uppercase tracking-widest text-xs">Refleksi: {entry.emotion}</h4>
-                <p className="text-[10px] text-gray-400 uppercase font-black">{new Date(entry.created_at).toLocaleString()}</p>
+                <p className="text-[10px] text-gray-400 uppercase font-black">{entry.created_at ? new Date(entry.created_at).toLocaleString() : 'Baru saja'}</p>
               </div>
             </div>
 

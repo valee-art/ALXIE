@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ReflectionEntry, Page } from '../types';
-import { saveReflection, getReflections, clearReflections, updateAdminReply } from '../services/dbService';
+import { saveReflection, subscribeToReflections, updateAdminReply } from '../services/dbService';
 import { generateReflectionEvaluation } from '../services/geminiService';
 import AdminChat from './AdminChat';
 
@@ -33,22 +33,22 @@ const Reflection: React.FC<ReflectionProps> = ({ isAdmin }) => {
   const [adminReplyText, setAdminReplyText] = useState("");
 
   useEffect(() => {
-    setHistory(getReflections());
+    // Berlangganan data refleksi secara real-time dari Firebase
+    const unsub = subscribeToReflections(setHistory);
+    return () => unsub();
   }, []);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedEmotion) return;
     const newId = crypto.randomUUID();
-    const newEntry: ReflectionEntry = {
-      id: newId,
+    const newEntry: Partial<ReflectionEntry> = {
       emotion: selectedEmotion.label,
       emoji: selectedEmotion.emoji,
       answers: { ...answers },
       created_at: new Date().toISOString(),
       status: 'new'
     };
-    saveReflection(newEntry);
-    setHistory([newEntry, ...history]);
+    await saveReflection(newEntry);
     setStep('history');
     setAnswers({ trigger: '', lastTime: '', coping: '' });
   };
@@ -66,11 +66,10 @@ const Reflection: React.FC<ReflectionProps> = ({ isAdmin }) => {
     setIsEvaluating(false);
   };
 
-  const handleAdminSubmitReply = (id: string) => {
+  const handleAdminSubmitReply = async (id: string) => {
     if (!adminReplyText.trim()) return;
-    const success = updateAdminReply('reflection', id, adminReplyText);
+    const success = await updateAdminReply('reflection', id, adminReplyText);
     if (success) {
-      setHistory(getReflections());
       setReplyingToId(null);
       setAdminReplyText("");
     }
@@ -201,7 +200,7 @@ const Reflection: React.FC<ReflectionProps> = ({ isAdmin }) => {
                   <span className="text-4xl">{entry.emoji}</span>
                   <div>
                     <h4 className="font-black text-gray-900 dark:text-white uppercase tracking-widest text-sm">{entry.emotion}</h4>
-                    <p className="text-[9px] text-gray-400 uppercase font-bold">{new Date(entry.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })}</p>
+                    <p className="text-[9px] text-gray-400 uppercase font-bold">{entry.created_at ? new Date(entry.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long' }) : 'Baru saja'}</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
