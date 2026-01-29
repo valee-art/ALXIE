@@ -16,6 +16,7 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>(Page.Home);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   
   // State untuk Admin Login Modal
   const [showAdminModal, setShowAdminModal] = useState(false);
@@ -35,6 +36,7 @@ const App: React.FC = () => {
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (adminPasscode === "ALXIE2024") {
+      setIsAdmin(true);
       setCurrentPage(Page.AdminDashboard);
       setShowAdminModal(false);
       setAdminPasscode("");
@@ -55,7 +57,7 @@ const App: React.FC = () => {
       <main className="flex-grow container mx-auto px-4 py-8 max-w-4xl">
         {currentPage === Page.Home && <Home onStart={() => setCurrentPage(Page.Venting)} />}
         {currentPage === Page.Venting && <VentingForm />}
-        {currentPage === Page.Reflection && <Reflection />}
+        {currentPage === Page.Reflection && <Reflection isAdmin={isAdmin} />}
         {currentPage === Page.Journal && <Journal />}
         {currentPage === Page.Community && <Community />}
         {currentPage === Page.AdminDashboard && <AdminDashboard />}
@@ -107,6 +109,11 @@ const App: React.FC = () => {
 
       {/* Floating Status Indicator */}
       <div className="fixed bottom-6 left-6 z-50 pointer-events-none flex flex-col gap-2">
+        {isAdmin && (
+           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border bg-violet-600 border-violet-400 shadow-xl">
+             <span className="text-[8px] font-black text-white uppercase tracking-widest">Admin Mode Active</span>
+           </div>
+        )}
         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border shadow-2xl backdrop-blur-md transition-all duration-500 ${isOnline && hasKey ? 'bg-indigo-950/40 border-indigo-500/30' : 'bg-red-950/80 border-red-500/50'}`}>
           <div className={`w-2 h-2 rounded-full ${isOnline && hasKey ? 'bg-indigo-400 animate-pulse' : 'bg-red-500'}`}></div>
           <span className="text-[9px] font-black text-white uppercase tracking-[0.2em]">

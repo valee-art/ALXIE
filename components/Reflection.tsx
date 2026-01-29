@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { ReflectionEntry, Page } from '../types';
-import { saveReflection, getReflections, clearReflections } from '../services/dbService';
+import { saveReflection, getReflections, clearReflections, updateAdminReply } from '../services/dbService';
 import { generateReflectionEvaluation } from '../services/geminiService';
 import AdminChat from './AdminChat';
 
@@ -13,7 +14,11 @@ const EMOTIONS = [
   { id: 'tired', label: 'Lelah', emoji: '☁️', color: 'bg-gray-500/10 border-gray-500/30' },
 ];
 
-const Reflection: React.FC = () => {
+interface ReflectionProps {
+  isAdmin?: boolean;
+}
+
+const Reflection: React.FC<ReflectionProps> = ({ isAdmin }) => {
   const [step, setStep] = useState<'select' | 'form' | 'history' | 'chat'>('select');
   const [selectedEmotion, setSelectedEmotion] = useState<typeof EMOTIONS[0] | null>(null);
   const [answers, setAnswers] = useState({ trigger: '', lastTime: '', coping: '' });
@@ -22,6 +27,10 @@ const Reflection: React.FC = () => {
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [activeContext, setActiveContext] = useState("");
+  
+  // State untuk balasan admin inline
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
+  const [adminReplyText, setAdminReplyText] = useState("");
 
   useEffect(() => {
     setHistory(getReflections());
@@ -30,7 +39,6 @@ const Reflection: React.FC = () => {
   const handleSave = () => {
     if (!selectedEmotion) return;
     const newId = crypto.randomUUID();
-    // Fix: Added missing status property as it is required by the ReflectionEntry interface
     const newEntry: ReflectionEntry = {
       id: newId,
       emotion: selectedEmotion.label,
@@ -58,8 +66,18 @@ const Reflection: React.FC = () => {
     setIsEvaluating(false);
   };
 
+  const handleAdminSubmitReply = (id: string) => {
+    if (!adminReplyText.trim()) return;
+    const success = updateAdminReply('reflection', id, adminReplyText);
+    if (success) {
+      setHistory(getReflections());
+      setReplyingToId(null);
+      setAdminReplyText("");
+    }
+  };
+
   if (step === 'chat' && activeChatId) {
-    return <AdminChat sessionId={activeChatId} context={activeContext} onBack={() => setStep('history')} />;
+    return <AdminChat isAdmin={isAdmin} sessionId={activeChatId} context={activeContext} onBack={() => setStep('history')} />;
   }
 
   if (step === 'select') {
@@ -168,13 +186,16 @@ const Reflection: React.FC = () => {
           <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">Riwayat Refleksimu</h2>
           <p className="text-gray-500 dark:text-gray-400 italic">Melihat pola emosi untuk mengenal diri lebih baik.</p>
         </div>
-        <button onClick={() => setStep('select')} className="px-6 py-2 bg-blue-600 text-white text-[10px] font-black rounded-full uppercase tracking-widest shadow-lg hover:bg-blue-700 transition-all">Refleksi Baru</button>
+        <div className="flex gap-2">
+          {isAdmin && <span className="px-4 py-2 bg-indigo-600 text-white text-[9px] font-black rounded-full uppercase tracking-widest flex items-center">Admin View Active</span>}
+          <button onClick={() => setStep('select')} className="px-6 py-2 bg-blue-600 text-white text-[10px] font-black rounded-full uppercase tracking-widest shadow-lg hover:bg-blue-700 transition-all">Refleksi Baru</button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-6">
           {history.map((entry) => (
-            <div key={entry.id} className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all">
+            <div key={entry.id} className={`bg-white dark:bg-gray-900 border ${entry.admin_reply ? 'border-green-500/30' : 'border-gray-100 dark:border-gray-800'} rounded-3xl p-6 shadow-sm hover:shadow-md transition-all`}>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-4">
                   <span className="text-4xl">{entry.emoji}</span>
@@ -183,17 +204,65 @@ const Reflection: React.FC = () => {
                     <p className="text-[9px] text-gray-400 uppercase font-bold">{new Date(entry.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })}</p>
                   </div>
                 </div>
-                <button 
-                  onClick={() => startChat(entry)}
-                  className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[9px] font-black rounded-xl uppercase tracking-widest border border-blue-100 dark:border-blue-900/30 hover:bg-blue-600 hover:text-white transition-all"
-                >
-                  Bicara Relawan
-                </button>
+                <div className="flex gap-2">
+                  {isAdmin && (
+                    <button 
+                      onClick={() => setReplyingToId(replyingToId === entry.id ? null : entry.id)}
+                      className="px-4 py-2 bg-indigo-600 text-white text-[9px] font-black rounded-xl uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-md"
+                    >
+                      {entry.admin_reply ? 'Edit Balasan' : 'Balas Manual'}
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => startChat(entry)}
+                    className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[9px] font-black rounded-xl uppercase tracking-widest border border-blue-100 dark:border-blue-900/30 hover:bg-blue-600 hover:text-white transition-all"
+                  >
+                    Bicara Relawan
+                  </button>
+                </div>
               </div>
-              <div className="space-y-3 text-sm">
+              
+              <div className="space-y-3 text-sm mb-4">
                 <p className="text-gray-600 dark:text-gray-400"><span className="font-bold text-blue-500">Pemicu:</span> {entry.answers.trigger}</p>
                 <p className="text-gray-600 dark:text-gray-400"><span className="font-bold text-blue-500">Koping:</span> {entry.answers.coping}</p>
               </div>
+
+              {/* Balasan Admin Inline */}
+              {entry.admin_reply && (
+                <div className="mt-4 p-4 bg-green-50 dark:bg-green-950/20 rounded-2xl border border-green-200 dark:border-green-900/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs">🌿</span>
+                    <span className="text-[9px] font-black text-green-600 dark:text-green-400 uppercase tracking-widest">Saran Admin ALXIE</span>
+                  </div>
+                  <p className="text-xs text-green-900 dark:text-green-100 leading-relaxed italic">"{entry.admin_reply}"</p>
+                </div>
+              )}
+
+              {/* Form Balas Admin */}
+              {replyingToId === entry.id && (
+                <div className="mt-4 p-4 bg-indigo-50 dark:bg-indigo-950/40 rounded-2xl border-2 border-indigo-500 space-y-3 animate-in slide-in-from-top-2">
+                  <textarea 
+                    className="w-full p-3 bg-white dark:bg-black rounded-xl border border-indigo-200 dark:border-indigo-800 text-xs outline-none focus:ring-2 focus:ring-indigo-500 min-h-[100px] resize-none"
+                    placeholder="Tulis saran atau evaluasi manual untuk refleksi ini..."
+                    value={adminReplyText}
+                    onChange={(e) => setAdminReplyText(e.target.value)}
+                  />
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => handleAdminSubmitReply(entry.id)}
+                      className="flex-1 py-2 bg-indigo-600 text-white text-[10px] font-black rounded-lg uppercase tracking-widest"
+                    >
+                      Simpan Balasan
+                    </button>
+                    <button 
+                      onClick={() => setReplyingToId(null)}
+                      className="px-4 py-2 text-gray-400 text-[10px] font-bold uppercase tracking-widest"
+                    >
+                      Batal
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
           {history.length === 0 && (

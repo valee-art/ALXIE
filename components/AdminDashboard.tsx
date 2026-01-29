@@ -11,8 +11,8 @@ const AdminDashboard: React.FC = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
-    setVents(getVents().reverse());
-    setReflections(getReflections().reverse());
+    setVents([...getVents()].reverse());
+    setReflections([...getReflections()].reverse());
   }, []);
 
   const handleSendReply = () => {
@@ -23,8 +23,8 @@ const AdminDashboard: React.FC = () => {
       alert("Balasan berhasil dikirim ke pengguna!");
       setReplyText("");
       setSelectedId(null);
-      setVents(getVents().reverse());
-      setReflections(getReflections().reverse());
+      setVents([...getVents()].reverse());
+      setReflections([...getReflections()].reverse());
     }
   };
 
@@ -51,52 +51,72 @@ const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Info Box for Local Storage Limitation */}
+      <div className="p-4 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 rounded-2xl flex items-center gap-4">
+        <span className="text-2xl">💡</span>
+        <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium leading-relaxed uppercase tracking-wider">
+          <span className="font-black">Penting:</span> Karena ALXIE menggunakan <span className="underline">Local Storage</span> demi privasi, data hanya akan muncul jika diisi di perangkat/browser yang sama. Data dari HP teman Anda tidak akan muncul di sini kecuali sistem ini dihubungkan ke database online (Cloud).
+        </p>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-4 max-h-[70vh] overflow-y-auto pr-2 scrollbar-hide">
           {activeTab === 'vents' ? (
-            vents.map(v => (
-              <div 
-                key={v.id} 
-                onClick={() => setSelectedId(v.id)}
-                className={`p-6 rounded-3xl border-2 cursor-pointer transition-all ${selectedId === v.id ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 shadow-xl scale-[1.01]' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900/40 hover:border-indigo-200'}`}
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{v.mood === 'sad' ? '😢' : v.mood === 'anxious' ? '😰' : '📝'}</span>
-                    <div>
-                      <h4 className="font-bold text-gray-900 dark:text-white">{v.panggilan || 'Anonim'}</h4>
-                      <p className="text-[10px] text-gray-400 uppercase font-black">{new Date(v.created_at).toLocaleString()}</p>
+            vents.length > 0 ? (
+              vents.map(v => (
+                <div 
+                  key={v.id} 
+                  onClick={() => setSelectedId(v.id)}
+                  className={`p-6 rounded-3xl border-2 cursor-pointer transition-all ${selectedId === v.id ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 shadow-xl scale-[1.01]' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900/40 hover:border-indigo-200'}`}
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{v.mood === 'sad' ? '😢' : v.mood === 'anxious' ? '😰' : '📝'}</span>
+                      <div>
+                        <h4 className="font-bold text-gray-900 dark:text-white">{v.panggilan || 'Anonim'}</h4>
+                        <p className="text-[10px] text-gray-400 uppercase font-black">{new Date(v.created_at).toLocaleString()}</p>
+                      </div>
                     </div>
+                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${v.status === 'replied' ? 'bg-green-100 text-green-600' : 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400'}`}>
+                      {v.status === 'replied' ? 'Sudah Dibalas' : 'Antrean Baru'}
+                    </span>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${v.status === 'replied' ? 'bg-green-100 text-green-600' : 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400'}`}>
-                    {v.status === 'replied' ? 'Sudah Dibalas' : 'Antrean Baru'}
-                  </span>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 italic">"{v.pesan}"</p>
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 italic">"{v.pesan}"</p>
+              ))
+            ) : (
+              <div className="py-20 text-center border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-3xl opacity-50">
+                <p className="text-xs uppercase font-black tracking-widest text-gray-400">Belum ada curhatan masuk di perangkat ini</p>
               </div>
-            ))
+            )
           ) : (
-            reflections.map(r => (
-              <div 
-                key={r.id} 
-                onClick={() => setSelectedId(r.id)}
-                className={`p-6 rounded-3xl border-2 cursor-pointer transition-all ${selectedId === r.id ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 shadow-xl scale-[1.01]' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900/40 hover:border-indigo-200'}`}
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{r.emoji}</span>
-                    <div>
-                      <h4 className="font-bold text-gray-900 dark:text-white">{r.emotion}</h4>
-                      <p className="text-[10px] text-gray-400 uppercase font-black">{new Date(r.created_at).toLocaleString()}</p>
+            reflections.length > 0 ? (
+              reflections.map(r => (
+                <div 
+                  key={r.id} 
+                  onClick={() => setSelectedId(r.id)}
+                  className={`p-6 rounded-3xl border-2 cursor-pointer transition-all ${selectedId === r.id ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 shadow-xl scale-[1.01]' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900/40 hover:border-indigo-200'}`}
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{r.emoji}</span>
+                      <div>
+                        <h4 className="font-bold text-gray-900 dark:text-white">{r.emotion}</h4>
+                        <p className="text-[10px] text-gray-400 uppercase font-black">{new Date(r.created_at).toLocaleString()}</p>
+                      </div>
                     </div>
+                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${r.status === 'replied' ? 'bg-green-100 text-green-600' : 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400'}`}>
+                      {r.status === 'replied' ? 'Sudah Dibalas' : 'Antrean Baru'}
+                    </span>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${r.status === 'replied' ? 'bg-green-100 text-green-600' : 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400'}`}>
-                    {r.status === 'replied' ? 'Sudah Dibalas' : 'Antrean Baru'}
-                  </span>
+                  <p className="text-xs text-gray-500 line-clamp-1"><span className="font-bold">Pemicu:</span> {r.answers.trigger}</p>
                 </div>
-                <p className="text-xs text-gray-500 line-clamp-1"><span className="font-bold">Pemicu:</span> {r.answers.trigger}</p>
+              ))
+            ) : (
+              <div className="py-20 text-center border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-3xl opacity-50">
+                <p className="text-xs uppercase font-black tracking-widest text-gray-400">Belum ada refleksi masuk di perangkat ini</p>
               </div>
-            ))
+            )
           )}
         </div>
 

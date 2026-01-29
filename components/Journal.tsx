@@ -1,34 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { VentData } from '../types';
-import { getAdminStats } from '../services/dbService';
 
-const ADMIN_ICONS: Record<string, string> = {
-  'Admin ALXIE': '🧿',
-  'Epy': '🛡️',
-  'Misteri': '🌑',
-  'ADMIN Axelia': '✨',
-  'Angel': '👼'
-};
+import React, { useState, useEffect } from 'react';
+import { VentData, ReflectionEntry } from '../types';
+import { getAdminStats, getVents, getReflections } from '../services/dbService';
 
 const Journal: React.FC = () => {
-  const [entries, setEntries] = useState<VentData[]>([]);
-  const [moodStats, setMoodStats] = useState<Record<string, number>>({});
-  const [adminStats, setAdminStats] = useState<Record<string, number>>({});
+  const [vents, setVents] = useState<VentData[]>([]);
+  const [reflections, setReflections] = useState<ReflectionEntry[]>([]);
+  const [filter, setFilter] = useState<'all' | 'vents' | 'reflections'>('all');
 
   useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('alxie_vents') || '[]');
-      setEntries([...saved].reverse());
-      
-      const counts: Record<string, number> = {};
-      saved.forEach((v: VentData) => {
-        if (v.mood) counts[v.mood] = (counts[v.mood] || 0) + 1;
-      });
-      setMoodStats(counts);
-      setAdminStats(getAdminStats());
-    } catch (e) {
-      console.error("Gagal memuat jurnal", e);
-    }
+    setVents([...getVents()].reverse());
+    setReflections([...getReflections()].reverse());
   }, []);
 
   const getMoodEmoji = (moodId?: string) => {
@@ -42,68 +24,90 @@ const Journal: React.FC = () => {
     }
   };
 
-  const hasAnyData = entries.length > 0 || Object.keys(adminStats).length > 0;
+  const hasAnyData = vents.length > 0 || reflections.length > 0;
 
   if (!hasAnyData) {
     return (
       <div className="max-w-2xl mx-auto py-20 text-center">
         <div className="text-6xl mb-6">🏜️</div>
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Jurnal Masih Kosong</h2>
-        <p className="text-gray-600 dark:text-gray-400 mb-8">Mulailah mencurahkan perasaanmu, balasan admin akan muncul di sini.</p>
+        <p className="text-gray-600 dark:text-gray-400 mb-8">Mulailah mencurahkan perasaan atau melakukan refleksi emosi untuk melihat riwayatmu di sini.</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto py-10 space-y-12 animate-in fade-in duration-700">
-      <div className="flex justify-between items-end">
+    <div className="max-w-2xl mx-auto py-10 space-y-8 animate-in fade-in duration-700">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter italic">Jurnal & Dukungan</h2>
-          <p className="text-gray-500 dark:text-gray-400">Refleksi dari perjalananmu dan balasan dari tim ALXIE.</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">Catatan perjalanan emosionalmu di ALXIE.</p>
+        </div>
+        
+        <div className="flex gap-2 p-1 bg-gray-100 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
+          <button onClick={() => setFilter('all')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${filter === 'all' ? 'bg-white dark:bg-indigo-600 shadow-sm text-indigo-600 dark:text-white' : 'text-gray-400'}`}>Semua</button>
+          <button onClick={() => setFilter('vents')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${filter === 'vents' ? 'bg-white dark:bg-indigo-600 shadow-sm text-indigo-600 dark:text-white' : 'text-gray-400'}`}>Curhat</button>
+          <button onClick={() => setFilter('reflections')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${filter === 'reflections' ? 'bg-white dark:bg-indigo-600 shadow-sm text-indigo-600 dark:text-white' : 'text-gray-400'}`}>Refleksi</button>
         </div>
       </div>
 
       <div className="space-y-6">
-        {entries.map((entry) => (
+        {/* Render Curhatan (Vents) */}
+        {(filter === 'all' || filter === 'vents') && vents.map((entry) => (
           <div key={entry.id} className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-[2rem] p-8 shadow-sm hover:shadow-md transition-all relative overflow-hidden">
-            {entry.admin_reply && (
-              <div className="absolute top-0 right-0 bg-blue-600 text-white text-[8px] font-black px-4 py-1.5 rounded-bl-xl uppercase tracking-widest animate-pulse">
-                Pesan Baru Dari Admin
-              </div>
-            )}
-
+            {entry.admin_reply && <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[8px] font-black px-4 py-1.5 rounded-bl-xl uppercase tracking-widest">Balasan Admin</div>}
+            
             <div className="flex items-center gap-4 mb-6">
               <span className="text-4xl">{getMoodEmoji(entry.mood)}</span>
               <div>
-                <h4 className="font-bold text-gray-900 dark:text-white uppercase tracking-widest text-xs">{entry.panggilan || "Anonim"}</h4>
+                <h4 className="font-bold text-gray-900 dark:text-white uppercase tracking-widest text-xs">Curhatan: {entry.panggilan || "Anonim"}</h4>
                 <p className="text-[10px] text-gray-400 uppercase font-black">{new Date(entry.created_at).toLocaleString()}</p>
               </div>
             </div>
 
             <div className="space-y-6">
-              <p className="text-gray-700 dark:text-gray-300 italic text-base border-l-4 border-blue-500/20 pl-4 py-1">
-                "{entry.pesan}"
-              </p>
-
+              <p className="text-gray-700 dark:text-gray-300 italic text-base border-l-4 border-indigo-500/20 pl-4 py-1">"{entry.pesan}"</p>
               {entry.admin_reply && (
-                <div className="mt-8 p-6 bg-blue-50 dark:bg-blue-950/40 rounded-3xl border-2 border-blue-200 dark:border-blue-900/30 relative">
+                <div className="mt-8 p-6 bg-indigo-50 dark:bg-indigo-950/40 rounded-3xl border-2 border-indigo-200 dark:border-indigo-900/30">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-xl">🧿</span>
-                    <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-[0.2em]">Tanggapan Tim ALXIE</span>
+                    <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.2em]">Tanggapan Tim ALXIE</span>
                   </div>
-                  <p className="text-sm text-blue-900 dark:text-blue-100 leading-relaxed font-medium">
-                    {entry.admin_reply}
-                  </p>
-                  <p className="text-[8px] text-blue-400 mt-4 uppercase font-bold text-right">
-                    Dibalas pada: {new Date(entry.admin_replied_at || '').toLocaleDateString()}
-                  </p>
+                  <p className="text-sm text-indigo-900 dark:text-indigo-100 leading-relaxed font-medium">{entry.admin_reply}</p>
                 </div>
               )}
+            </div>
+          </div>
+        ))}
 
-              {entry.ai_response && !entry.admin_reply && (
-                <div className="p-4 bg-gray-50 dark:bg-black/40 rounded-2xl border border-gray-100 dark:border-gray-800">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Catatan ALXIE (AI):</p>
-                  <p className="text-xs text-gray-500 leading-relaxed">{entry.ai_response}</p>
+        {/* Render Refleksi (Reflections) */}
+        {(filter === 'all' || filter === 'reflections') && reflections.map((entry) => (
+          <div key={entry.id} className="bg-white dark:bg-gray-900 border border-indigo-100 dark:border-indigo-900/30 rounded-[2rem] p-8 shadow-sm hover:shadow-md transition-all relative overflow-hidden">
+             {entry.admin_reply && <div className="absolute top-0 right-0 bg-green-600 text-white text-[8px] font-black px-4 py-1.5 rounded-bl-xl uppercase tracking-widest">Evaluasi Admin</div>}
+             
+             <div className="flex items-center gap-4 mb-6">
+              <span className="text-4xl">{entry.emoji}</span>
+              <div>
+                <h4 className="font-bold text-gray-900 dark:text-white uppercase tracking-widest text-xs">Refleksi: {entry.emotion}</h4>
+                <p className="text-[10px] text-gray-400 uppercase font-black">{new Date(entry.created_at).toLocaleString()}</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-3">
+                <div className="text-xs bg-gray-50 dark:bg-black/40 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
+                  <p className="font-black text-indigo-500 uppercase text-[9px] mb-1">Pemicu</p>
+                  <p className="text-gray-600 dark:text-gray-300 italic">"{entry.answers.trigger}"</p>
+                </div>
+              </div>
+
+              {entry.admin_reply && (
+                <div className="mt-4 p-6 bg-green-50 dark:bg-green-900/20 rounded-3xl border-2 border-green-200 dark:border-green-900/30">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-xl">🌿</span>
+                    <span className="text-[10px] font-black text-green-600 dark:text-green-400 uppercase tracking-[0.2em]">Saran Langkah Kecil</span>
+                  </div>
+                  <p className="text-sm text-green-900 dark:text-green-100 leading-relaxed font-medium">{entry.admin_reply}</p>
                 </div>
               )}
             </div>
